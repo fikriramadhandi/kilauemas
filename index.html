@@ -154,6 +154,7 @@ ol.ins{margin:12px 0 4px;padding-left:20px}ol.ins li{margin-bottom:10px}ol.ins b
 .grid .wide{grid-column:1/-1}
 .grid h3{grid-column:1/-1;margin:8px 0 0;font-size:14px;color:var(--ink)}
 .kicker{font-size:12px;font-weight:900;letter-spacing:.08em;color:var(--orange);text-transform:uppercase;margin:0 0 2px}
+table input[type=date]{font:inherit;font-size:12px;padding:3px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink)}
 .err{background:var(--red-soft);color:var(--red);padding:12px 16px;border-radius:8px;margin-top:16px}
 @media (max-width:600px){h1{font-size:22px}.tally b{font-size:24px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -382,6 +383,88 @@ function processMultiposting(mpRows, eligResults, rules) {
   return { rows: out, missing };
 }
 
+// ===== Event tracker: parsing EVENT ATL & atribusi kode promo =====
+const EV_MON = {jan:1,januari:1,feb:2,februari:2,mar:3,maret:3,march:3,apr:4,april:4,mei:5,may:5,jun:6,juni:6,june:6,jul:7,juli:7,july:7,agt:8,agu:8,agus:8,agustus:8,aug:8,august:8,sep:9,sept:9,september:9,okt:10,oct:10,oktober:10,october:10,nov:11,november:11,des:12,dec:12,desember:12,december:12};
+const evPad = n => String(n).padStart(2,"0");
+const evIso = (y,m,d) => `${y}-${evPad(m)}-${evPad(d)}`;
+function evParseDate(raw){
+  let s = String(raw||"").toLowerCase().replace(/\s+/g," ").trim();
+  if (!s) return null;
+  let m;
+  // 2026-08-28 (format ISO)
+  if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/))) return { start:s, end:s };
+  // 28-30 agt 2026 / 11-14 jun-2026 / 30 - 1 feb 2026
+  if ((m = s.match(/^(\d{1,2})\s*[-–]\s*(\d{1,2})[\s-]+([a-z]+)[\s-]*(\d{4})$/))){
+    const mo = EV_MON[m[3]]; if (!mo) return null;
+    const d1=+m[1], d2=+m[2], y=+m[4];
+    if (d1 <= d2) return { start:evIso(y,mo,d1), end:evIso(y,mo,d2) };
+    const pm = mo===1 ? 12 : mo-1, py = mo===1 ? y-1 : y;
+    return { start:evIso(py,pm,d1), end:evIso(y,mo,d2) };
+  }
+  // 18-jan-2026 / 12 april 2026 / 22-mei-2026
+  if ((m = s.match(/^(\d{1,2})[\s-]+([a-z]+)[\s-]*(\d{4})$/))){
+    const mo = EV_MON[m[2]]; if (!mo) return null;
+    const d = evIso(+m[3],mo,+m[1]); return { start:d, end:d };
+  }
+  // 18/01/2026
+  if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))){ const d=evIso(+m[3],+m[2],+m[1]); return { start:d, end:d }; }
+  return null;
+}
+function evCodes(promo){
+  const t = String(promo||"").toUpperCase();
+  const out = []; const re = /EMAS(30|50)(?: ?([A-Z]{2,3})(?![A-Z]))?/g; let m;
+  while ((m = re.exec(t))) out.push({ program:"EMAS"+m[1], suffix:m[2]||"" });
+  const seen = {}; return out.filter(c=>{ const k=c.program+c.suffix; if(seen[k]) return false; seen[k]=1; return true; });
+}
+function evParseSheet(aoa){
+  const hi = aoa.findIndex(r => r.some(c=>/^\s*task\s*$/i.test(c)) && r.some(c=>/promo/i.test(c)));
+  if (hi < 0) throw new Error("Kolom TASK dan Promo/Program tidak ditemukan. Pastikan yang diunduh adalah sheet EVENT ATL.");
+  const H = aoa[hi].map(c=>String(c).trim().toLowerCase());
+  const col = re => H.findIndex(h=>re.test(h));
+  const cTask=col(/^task$/), cPlace=col(/^place$/), cPic=col(/^pic$/), cDue=col(/due date/), cEnd=col(/program end/), cPromo=col(/promo/), cNoa=H.findIndex(h=>h==="noa"), cGr=col(/gram/), cStat=col(/latest update/);
+  const evs = [];
+  aoa.slice(hi+1).forEach((r,i)=>{
+    const promo = String(r[cPromo]||"").trim(); const codes = evCodes(promo);
+    const name = String(r[cTask]||"").trim();
+    if (!codes.length || !name) return;
+    const d = evParseDate(r[cDue]); const e = cEnd>=0 ? evParseDate(r[cEnd]) : null;
+    const ev = { id:"ev"+(hi+i+2), name, place:String(r[cPlace]||"").trim(), pic:String(r[cPic]||"").trim(), tanggal:String(r[cDue]||"").trim(),
+      start: d ? d.start : null, end: e ? e.end : (d ? d.end : null), promo: promo.replace(/\s+/g," "), codes,
+      noaSheet: r[cNoa]!==undefined && String(r[cNoa]).trim()!=="" ? Number(String(r[cNoa]).replace(/,/g,"")) : null,
+      status: String(r[cStat]||"").trim(), warn:[] };
+    if (!ev.start) ev.warn.push(ev.tanggal ? `tanggal "${ev.tanggal}" tidak terbaca` : "tanggal kosong");
+    const thisYear = 2026;
+    if (ev.start && +ev.start.slice(0,4) !== thisYear) ev.warn.push(`tahun ${ev.start.slice(0,4)}, cek kembali`);
+    evs.push(ev);
+  });
+  return evs;
+}
+function evSuffixOf(code, program){
+  const c = String(code||"").toUpperCase().replace(/\s+/g,"");
+  const i = c.indexOf(program); if (i<0) return null;
+  const m = c.slice(i+program.length).match(/^([A-Z]*)/); return m ? m[1] : "";
+}
+const evDays = (a,b) => Math.round((new Date(b+"T00:00:00Z")-new Date(a+"T00:00:00Z"))/864e5);
+// Atribusi satu transaksi ke event
+function evAttribute(trxDate, program, code, events, tol){
+  tol = Number(tol)||0;
+  const sfx = evSuffixOf(code, program);
+  const inWin = ev => ev.start && trxDate && trxDate >= ev.start && evDays(ev.end||ev.start, trxDate) <= tol;
+  const dist = ev => !ev.start || !trxDate ? 1e9 : trxDate < ev.start ? evDays(trxDate, ev.start) : Math.max(0, evDays(ev.end||ev.start, trxDate));
+  if (sfx){
+    const cand = events.filter(ev=>ev.codes.some(c=>c.suffix===sfx));
+    if (!cand.length) return { group:`Kode event tidak dikenal: ${sfx}`, method:"kode" , suffix:sfx};
+    const win = cand.filter(inWin);
+    if (win.length===1) return { ev:win[0], method:"kode" , suffix:sfx};
+    const pick = (win.length ? win : cand).slice().sort((a,b)=>dist(a)-dist(b))[0];
+    return { ev:pick, method: win.length ? "kode (beberapa event, dipilih terdekat)" : "kode (di luar tanggal event)", suffix:sfx, warn: !win.length };
+  }
+  const cand = events.filter(ev=>ev.codes.some(c=>c.suffix==="" && c.program===program) && inWin(ev));
+  if (cand.length===1) return { ev:cand[0], method:"tanggal", suffix:"" };
+  if (cand.length>1) return { group:"Tanpa kode event, beberapa event di tanggal yang sama", method:"tanggal", candidates:cand.map(e=>e.name), suffix:"" };
+  return { group:"Tanpa kode event, di luar jadwal event", method:"tanggal", suffix:"" };
+}
+const EV_DEFAULT = {"updated":"2026-10-05","events":[{"id":"ev51","name":"8,10","place":"","pic":"","tanggal":"","start":null,"end":null,"promo":"EMAS30 + Direct Gift Gold","codes":[{"program":"EMAS30","suffix":""}],"noaSheet":25,"status":"ON PROCESS","warn":["tanggal kosong"]},{"id":"ev52","name":"Syafif Banjarmasin","place":"","pic":"","tanggal":"","start":null,"end":null,"promo":"EMAS30 + Direct Gift Gold","codes":[{"program":"EMAS30","suffix":""}],"noaSheet":17,"status":"ON PROCESS","warn":["tanggal kosong"]},{"id":"ev53","name":"Makna Fest","place":"","pic":"","tanggal":"","start":null,"end":null,"promo":"EMAS30 + Direct Gift Gold","codes":[{"program":"EMAS30","suffix":""}],"noaSheet":null,"status":"ON PROCESS","warn":["tanggal kosong"]},{"id":"ev58","name":"Konser Afgan","place":"","pic":"","tanggal":"18-Jul-2026","start":"2026-07-18","end":"2026-07-18","promo":"EMAS50 + Direct Gift Gold","codes":[{"program":"EMAS50","suffix":""}],"noaSheet":null,"status":"DONE","warn":[]},{"id":"ev59","name":"Run for Humanity Solo","place":"","pic":"","tanggal":"","start":null,"end":null,"promo":"EMAS30 Burek Emas 0.25gr dengan kode: RFH25 (50 tiket 10k) Top Up Emas 0.25gr (50 tiket 5k)","codes":[{"program":"EMAS30","suffix":""}],"noaSheet":134,"status":"ON PROCESS","warn":["tanggal kosong"]},{"id":"ev66","name":"Indonesia Fashion Aesthetics","place":"","pic":"","tanggal":"13-Jul-2026","start":"2026-07-13","end":"2026-07-13","promo":"EMAS50 + EMAS30 + Direct Gift Gold","codes":[{"program":"EMAS50","suffix":""},{"program":"EMAS30","suffix":""}],"noaSheet":null,"status":"ON PROCESS","warn":[]},{"id":"ev69","name":"Golfusion Sentul","place":"","pic":"","tanggal":"29 Agt 2026","start":"2026-08-29","end":"2026-08-29","promo":"EMAS30 + Direct Gift Gold (Belom nulis di sheet)","codes":[{"program":"EMAS30","suffix":""}],"noaSheet":3,"status":"ON PROCESS","warn":[]},{"id":"ev70","name":"Expo Keuangan Syafif","place":"","pic":"","tanggal":"20-23 Agt 2026","start":"2026-08-20","end":"2026-08-23","promo":"EMAS30","codes":[{"program":"EMAS30","suffix":""}],"noaSheet":27,"status":"ON PROCESS","warn":[]},{"id":"ev71","name":"Menata Hati Palangkaraya","place":"","pic":"","tanggal":"30 Agt 2026","start":"2026-08-30","end":"2026-08-30","promo":"EMAS30","codes":[{"program":"EMAS30","suffix":""}],"noaSheet":27,"status":"ON PROCESS","warn":[]},{"id":"ev72","name":"Menata Hati Pontianak","place":"","pic":"","tanggal":"23 Agt 2026","start":"2026-08-23","end":"2026-08-23","promo":"EMAS30","codes":[{"program":"EMAS30","suffix":""}],"noaSheet":123,"status":"ON PROCESS","warn":[]},{"id":"ev73","name":"Menata Hati Bengkulu","place":"","pic":"","tanggal":"6 Sept 2026","start":"2026-09-06","end":"2026-09-06","promo":"EMAS30 + Direct Gift Gold (Belom nulis di sheet)","codes":[{"program":"EMAS30","suffix":""}],"noaSheet":94,"status":"ON PROCESS","warn":[]},{"id":"ev74","name":"Pekan Halal Indonesia","place":"","pic":"","tanggal":"28-30 Agt 2026","start":"2026-08-28","end":"2026-08-30","promo":"HUTRI81 + EMAS30 + Direct Gift Gold","codes":[{"program":"EMAS30","suffix":""}],"noaSheet":64,"status":"ON PROCESS","warn":[]},{"id":"ev75","name":"GUTF","place":"","pic":"","tanggal":"28-30 Agt 2026","start":"2026-08-28","end":"2026-08-30","promo":"HUTRI81 + EMAS30 + Direct Gift Gold","codes":[{"program":"EMAS30","suffix":""}],"noaSheet":100,"status":"ON PROCESS","warn":[]},{"id":"ev76","name":"SVTF","place":"","pic":"","tanggal":"27-30 Agt 2026","start":"2026-08-27","end":"2026-08-30","promo":"HUTRI81 + EMAS30 + Direct Gift Gold","codes":[{"program":"EMAS30","suffix":""}],"noaSheet":455,"status":"ON PROCESS","warn":[]},{"id":"ev77","name":"LFF 2026","place":"","pic":"","tanggal":"4-5 Sept 2026","start":"2026-09-04","end":"2026-09-05","promo":"EMAS30+EMAS50","codes":[{"program":"EMAS30","suffix":""},{"program":"EMAS50","suffix":""}],"noaSheet":17,"status":"ON PROCESS","warn":[]},{"id":"ev78","name":"Semen Padang Run","place":"","pic":"","tanggal":"27 Sept 2026","start":"2026-09-27","end":"2026-09-27","promo":"EMAS30 SP+ EMAS50SP","codes":[{"program":"EMAS30","suffix":"SP"},{"program":"EMAS50","suffix":"SP"}],"noaSheet":null,"status":"ON PROCESS","warn":[]},{"id":"ev79","name":"Dream Desire Fest","place":"","pic":"","tanggal":"12 Sept 2026","start":"2026-09-12","end":"2026-09-12","promo":"EMAS30 + EMAS50","codes":[{"program":"EMAS30","suffix":""},{"program":"EMAS50","suffix":""}],"noaSheet":32,"status":"ON PROCESS","warn":[]},{"id":"ev80","name":"Menata Hati Banjarmasin","place":"","pic":"","tanggal":"13 Sept 2026","start":"2026-09-13","end":"2026-09-13","promo":"EMAS30","codes":[{"program":"EMAS30","suffix":""}],"noaSheet":54,"status":"ON PROCESS","warn":[]},{"id":"ev81","name":"PADELYN X BEAURY","place":"","pic":"","tanggal":"12 Sept 2026","start":"2026-09-12","end":"2026-09-12","promo":"EMAS30 + Direct Gift Gold","codes":[{"program":"EMAS30","suffix":""}],"noaSheet":9,"status":"ON PROCESS","warn":[]},{"id":"ev82","name":"Menata Hati Lombok","place":"","pic":"","tanggal":"20 Sep 2026","start":"2026-09-20","end":"2026-09-20","promo":"EMAS30","codes":[{"program":"EMAS30","suffix":""}],"noaSheet":null,"status":"ON PROCESS","warn":[]},{"id":"ev83","name":"Menata Hati Lombok & Bali","place":"","pic":"","tanggal":"27 Sep 2026","start":"2026-09-27","end":"2026-09-27","promo":"EMAS30","codes":[{"program":"EMAS30","suffix":""}],"noaSheet":null,"status":"ON PROCESS","warn":[]},{"id":"ev84","name":"Muslimat NU Istiqlal","place":"","pic":"","tanggal":"18-20 Sept 2026","start":"2026-09-18","end":"2026-09-20","promo":"EMAS30NU & EMAS50NU","codes":[{"program":"EMAS30","suffix":"NU"},{"program":"EMAS50","suffix":"NU"}],"noaSheet":null,"status":"ON PROCESS","warn":[]},{"id":"ev85","name":"The 5th Summit of Halal 20","place":"","pic":"","tanggal":"19 Sept 2026","start":"2026-09-19","end":"2026-09-19","promo":"EMAS30SH & EMAS50SH","codes":[{"program":"EMAS30","suffix":"SH"},{"program":"EMAS50","suffix":"SH"}],"noaSheet":null,"status":"ON PROCESS","warn":[]},{"id":"ev86","name":"FEKDI X IFSE","place":"","pic":"","tanggal":"24-26 Sept 2026","start":"2026-09-24","end":"2026-09-26","promo":"EMAS30, EMAS50 & Direct Gift Gold","codes":[{"program":"EMAS30","suffix":""},{"program":"EMAS50","suffix":""}],"noaSheet":null,"status":"ON PROCESS","warn":[]},{"id":"ev87","name":"ANAT Fair","place":"","pic":"","tanggal":"23 Sept 2026","start":"2026-09-23","end":"2026-09-23","promo":"EMAS30AF & EMAS50AF","codes":[{"program":"EMAS30","suffix":"AF"},{"program":"EMAS50","suffix":"AF"}],"noaSheet":null,"status":"ON PROCESS","warn":[]},{"id":"ev88","name":"Live Project Semarang 2026","place":"","pic":"","tanggal":"26 Oct 2026","start":"2026-10-26","end":"2026-10-26","promo":"EMAS30LP & EMAS50LP","codes":[{"program":"EMAS30","suffix":"LP"},{"program":"EMAS50","suffix":"LP"}],"noaSheet":null,"status":"ON PROCESS","warn":[]},{"id":"ev89","name":"Milad Nurul Fikri Group (TMII)","place":"","pic":"","tanggal":"26 Sept 2026","start":"2026-09-26","end":"2026-09-26","promo":"EMAS30NF, EMAS50NF & Direct Gift Gold","codes":[{"program":"EMAS30","suffix":"NF"},{"program":"EMAS50","suffix":"NF"}],"noaSheet":null,"status":"ON PROCESS","warn":[]},{"id":"ev90","name":"EDELWEIS RUNNING FEST CIANJUR","place":"","pic":"","tanggal":"25-27 Sept 2026","start":"2026-09-25","end":"2026-09-27","promo":"EMAS30ER & EMAS50ER","codes":[{"program":"EMAS30","suffix":"ER"},{"program":"EMAS50","suffix":"ER"}],"noaSheet":null,"status":"ON PROCESS","warn":[]},{"id":"ev91","name":"Nahid SS27 X BSI Pop Up","place":"","pic":"","tanggal":"25-27 Sept 2027","start":"2027-09-25","end":"2027-09-27","promo":"EMAS30NF, EMAS50NF & Direct Gift Gold","codes":[{"program":"EMAS30","suffix":"NF"},{"program":"EMAS50","suffix":"NF"}],"noaSheet":null,"status":"ON PROCESS","warn":["tahun 2027, cek kembali"]},{"id":"ev92","name":"Menata Hati Depok","place":"","pic":"","tanggal":"11 Okt 2027","start":"2027-10-11","end":"2027-10-11","promo":"EMAS30DP, EMAS50DP & Direct Gift Gold (MGDP & BGDP)","codes":[{"program":"EMAS30","suffix":"DP"},{"program":"EMAS50","suffix":"DP"}],"noaSheet":null,"status":"ON PROCESS","warn":["tahun 2027, cek kembali"]}]};
 const $ = id => document.getElementById(id);
 const COMMON = ["periodStart","periodEnd","typeTrx","oldDebitAcc","newDebitAcc","maxDetails"];
 const PROG_KEYS = { EMAS30:["cb30","min30","q30"], EMAS50:["cb50","min50","q50"] };
@@ -568,6 +651,7 @@ function render(){
   </div>
   <div class="tabs" role="tablist">
     <button role="tab" data-tab="dash" aria-selected="${state.tab==="dash"}">Dashboard</button>
+    <button role="tab" data-tab="event" aria-selected="${state.tab==="event"}">Event</button>
     <button role="tab" data-tab="elig" aria-selected="${state.tab==="elig"}">Data Eligible (${allE.length})</button>
     <button role="tab" data-tab="mp" aria-selected="${state.tab==="mp"}">Multiposting (${allM.length})</button>
     <button role="tab" data-tab="reply" aria-selected="${state.tab==="reply"}">Balasan email (${state.res.list.filter(p=>p.m).length})</button>
@@ -592,6 +676,8 @@ function render(){
     rows.slice(0,LIMIT).forEach(x=>{ const r=x.row, st=mpStatus(x), nd=x.pair.rules.newDebitAcc; shown++;
       h += `<tr class="${rowCls(st)}"><td class="mono">${esc(x.pair.date)}</td><td>${x.pair.program}</td><td>${pill(st)}</td><td class="mono">${x.origDebit!==nd?`<span class="old">${esc(x.origDebit)}</span>`:""}${esc(x.fixed.debit_acc)}</td><td class="mono">${esc(r.debit_amount)}</td><td class="mono">${str(r.details)!==x.fixed.details?`<span class="old">${esc(r.details)}</span>`:""}${esc(x.fixed.details)} <span class="msg">(${x.fixed.details.length})</span></td><td class="mono">${esc(r.credit_acc)}</td><td class="notes">${issuesHtml(x.issues)}</td></tr>`; });
     h += `</tbody></table></div>`;
+  } else if (state.tab==="event"){
+    h += eventHtml();
   } else if (state.tab==="reply"){
     h += replyHtml();
   } else if (state.tab==="dash"){
@@ -609,6 +695,7 @@ function render(){
   $("dlE").onclick = downloadE; $("dlM").onclick = downloadM; $("dlRep").onclick = downloadReport; $("dlPkg").onclick = downloadPackage;
   if ($("copyNote")) $("copyNote").onclick = copyNote;
   if ($("aiBtn")) $("aiBtn").onclick = runAI;
+  evBind();
   document.querySelectorAll("[data-rp]").forEach(b=>b.onclick=()=>replyAction(b.dataset.rp, b.dataset.k, b));
   if ($("aiStop")) $("aiStop").onclick = ()=>state.aiCtl && state.aiCtl.abort();
 }
@@ -833,6 +920,7 @@ function aiPayload(){
       nasabah_tidak_eligible_dikeluarkan: state.excl, details_dipendekkan: allM.filter(isLong).length,
       debit_acc_lama: list[0].rules.oldDebitAcc, debit_acc_baru: list[0].rules.newDebitAcc, dasar_perubahan: "Berita Acara No. 06/0020-BA/BBG tanggal 3 Agustus 2026" },
     peringatan_file: state.res.warn.length,
+    event: (()=>{ try{ const R = evCompute(); return { per_event: R.evs.map(b=>({ event:b.ev.name, tanggal:b.ev.start, noa:Object.keys(b.acc).length, noa_di_sheet:b.ev.noaSheet, pembelian_rp:b.beli, cashback_rp:b.cb })), belum_terpasang: R.groups.map(g=>({ kelompok:g.group, transaksi:g.rows.length })) }; }catch(_){ return null; } })(),
   };
 }
 
@@ -971,5 +1059,106 @@ function replyAction(kind, key, btn){
   else if (kind==="body") copyText(replyText(p), btn);
   else if (kind==="fix") save(fixName(p.m.name), fixBytes(p));
   else if (kind==="sent"){ const m=sentMap(); if (m[key]) delete m[key]; else m[key]=new Date().toISOString(); try{ localStorage.setItem(SKEY, JSON.stringify(m)); }catch(_){} render(); }
+}
+
+// ===== Event Tracker =====
+const EVKEY = "kilau-events-v1", EVOVR = "kilau-events-override-v1", EVTOL = "kilau-events-tol-v1";
+function evLoad(){ try{ const d = JSON.parse(localStorage.getItem(EVKEY)||"null"); if (d && Array.isArray(d.events)) return d; }catch(_){} return EV_DEFAULT; }
+function evOverrides(){ try{ return JSON.parse(localStorage.getItem(EVOVR)||"{}")||{}; }catch(_){ return {}; } }
+function evList(){
+  const d = evLoad(), ov = evOverrides();
+  return d.events.map(e=>{ const o = ov[e.name]; if (!o) return e;
+    const n = Object.assign({}, e, { start:o.start||e.start, end:o.end||o.start||e.end, edited:true });
+    n.warn = e.warn.filter(w=>!/tahun|tanggal/.test(w)); return n; });
+}
+const evTol = () => { const v = Number(localStorage.getItem(EVTOL)); return isNaN(v) || localStorage.getItem(EVTOL)===null ? 1 : v; };
+function evCompute(){
+  const events = evList(), tol = evTol();
+  const per = {}, groups = {};
+  state.res.allE.forEach(x=>{
+    const trx = dateOf(x.row.tanggal_transaksi) || x.pair.date;
+    const a = evAttribute(trx, x.pair.program, x.row.kodepromo, events, tol); x.att = a;
+    const valid = x.status !== "Tidak eligible";
+    let b;
+    if (a.ev){ b = per[a.ev.id] = per[a.ev.id] || { ev:a.ev, rows:[], acc:{}, el:0, rv:0, no:0, beli:0, gram:0, cb:0, p30:0, p50:0, warn:0, methods:{} }; }
+    else { const gk = a.candidates ? `${a.group} (${trx})` : a.group; b = groups[gk] = groups[gk] || { group:gk, rows:[], acc:{}, el:0, rv:0, no:0, beli:0, gram:0, cb:0, p30:0, p50:0, cands:{}, sfx:a.suffix }; (a.candidates||[]).forEach(c=>b.cands[c]=1); }
+    b.rows.push(x);
+    if (x.status==="Eligible") b.el++; else if (x.status==="Perlu review") b.rv++; else b.no++;
+    if (valid){ b.acc[str(x.row.account_no)] = 1; b.beli += Number(x.row.amt_trx)||0; b.gram += Number(x.row.beratemas)||0; b.cb += Number(x.row.amt_cashback)||0; if (x.pair.program==="EMAS30") b.p30++; else b.p50++; }
+    if (a.ev){ b.methods[a.method] = (b.methods[a.method]||0)+1; if (a.warn) b.warn++; }
+  });
+  const evs = Object.values(per).sort((a,b)=>(b.ev.start||"").localeCompare(a.ev.start||""));
+  return { events, evs, groups:Object.values(groups).sort((a,b)=>b.rows.length-a.rows.length), tol };
+}
+function eventHtml(){
+  const R = evCompute(), d = evLoad();
+  const noa = b => Object.keys(b.acc).length;
+  let h = `<div class="pad"><div class="toolbar" style="padding:0 0 12px;border:0">
+    <span class="msg">${R.events.length} event dengan kode EMAS30/EMAS50 dari sheet EVENT ATL${d===EV_DEFAULT?" (data bawaan)":""}, diperbarui ${esc(d.updated||"-")}.</span>
+    <label class="chk">Toleransi <input type="number" id="evTol" value="${R.tol}" min="0" max="30" style="width:56px;font:inherit;padding:4px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)"> hari setelah event</label>
+    <label class="pick" style="margin:0"><label>Perbarui dari CSV EVENT ATL<input type="file" id="evCsv" accept=".csv,.xlsx"></label></label>
+    <button class="ghost" id="evReset">Data bawaan</button>
+    <button id="evDl">Unduh rekap event</button></div>`;
+  if (!R.evs.length) h += `<p class="msg">Belum ada transaksi yang cocok dengan event mana pun.</p>`;
+  else {
+    h += `<div class="scroll"><table><thead><tr><th>Event</th><th>Tanggal</th><th>Kode</th><th>NoA (data DAS)</th><th>NoA di sheet</th><th>EMAS30 / 50</th><th>Tidak eligible</th><th>Pembelian</th><th>Gram</th><th>Cashback</th><th>Cara cocok</th></tr></thead><tbody>`;
+    R.evs.forEach(b=>{ const e=b.ev;
+      h += `<tr class="${b.warn?"st-rv":"st-ok"}"><td class="nm"><b>${esc(e.name)}</b>${e.place?`<div class="msg">${esc(e.place)}</div>`:""}</td>
+      <td class="mono">${esc(e.start||"-")}${e.end&&e.end!==e.start?` s.d. ${esc(e.end)}`:""}</td>
+      <td class="mono">${esc(e.codes.map(c=>c.program+c.suffix).join(", "))}</td>
+      <td class="mono"><b>${noa(b)}</b></td><td class="mono">${e.noaSheet==null?"-":e.noaSheet}</td>
+      <td class="mono">${b.p30} / ${b.p50}</td><td class="mono">${b.no||"-"}</td>
+      <td class="mono">${rp(b.beli)}</td><td class="mono">${fmtN(b.gram,4)}</td><td class="mono">${rp(b.cb)}</td>
+      <td class="notes">${Object.entries(b.methods).map(([m,n])=>`${esc(m)}: ${n}`).join("<br>")}</td></tr>`; });
+    h += `</tbody></table></div>`;
+  }
+  if (R.groups.length){
+    h += `<h3 style="margin:18px 0 6px;font-size:15px">Transaksi yang belum bisa dipasangkan ke event</h3><div class="scroll"><table><thead><tr><th>Kelompok</th><th>Transaksi</th><th>NoA valid</th><th>Tanggal transaksi</th><th>Keterangan</th></tr></thead><tbody>`;
+    R.groups.forEach(g=>{ const ds=[...new Set(g.rows.map(x=>dateOf(x.row.tanggal_transaksi)||x.pair.date))].sort();
+      h += `<tr class="st-rv"><td>${esc(g.group)}</td><td class="mono">${g.rows.length}</td><td class="mono">${Object.keys(g.acc).length}</td>
+      <td class="mono">${esc(ds.length>3?`${ds[0]} s.d. ${ds[ds.length-1]}`:ds.join(", "))}</td>
+      <td class="notes">${Object.keys(g.cands).length?`Kandidat: ${esc(Object.keys(g.cands).join(", "))}. Gunakan kode event khusus (mis. EMAS30NU) supaya bisa dibedakan.`:g.sfx?`Kode "${esc(g.sfx)}" belum terdaftar di sheet EVENT ATL. Tambahkan di kolom Promo/Program lalu perbarui CSV.`:"Tidak ada event EMAS30/EMAS50 tanpa kode khusus yang berlangsung di tanggal ini."}</td></tr>`; });
+    h += `</tbody></table></div>`;
+  }
+  const ov = evOverrides();
+  h += `<details style="margin-top:18px"><summary style="cursor:pointer;font-weight:700">Daftar event &amp; tanggal (${R.events.length})</summary>
+    <p class="msg">Tanggal yang tidak terbaca atau tahunnya mencurigakan ditandai kuning. Koreksi di sini (tersimpan di browser), atau perbaiki di Google Sheet lalu unggah ulang CSV.</p>
+    <div class="scroll"><table><thead><tr><th>Event</th><th>Tanggal di sheet</th><th>Mulai</th><th>Selesai</th><th>Kode</th><th>Catatan</th></tr></thead><tbody>`;
+  R.events.forEach(e=>{
+    h += `<tr class="${e.warn.length?"st-rv":""}"><td class="nm">${esc(e.name)}</td><td>${esc(e.tanggal||"-")}</td>
+    <td><input type="date" data-evs="${esc(e.name)}" value="${esc(e.start||"")}"></td><td><input type="date" data-eve="${esc(e.name)}" value="${esc(e.end||"")}"></td>
+    <td class="mono">${esc(e.codes.map(c=>c.program+c.suffix).join(", "))}</td><td class="notes">${esc(e.warn.join("; "))}${ov[e.name]?' <span class="msg">(dikoreksi)</span>':""}</td></tr>`; });
+  h += `</tbody></table></div></details></div>`;
+  return h;
+}
+function evBind(){
+  if (!$("evTol")) return;
+  $("evTol").onchange = e=>{ localStorage.setItem(EVTOL, String(Math.max(0, Number(e.target.value)||0))); render(); };
+  $("evReset").onclick = ()=>{ if (confirm("Kembalikan daftar event ke data bawaan dan hapus semua koreksi tanggal?")){ localStorage.removeItem(EVKEY); localStorage.removeItem(EVOVR); render(); } };
+  $("evCsv").onchange = async e=>{
+    const f = e.target.files[0]; if (!f) return;
+    try{
+      const buf = new Uint8Array(await f.arrayBuffer());
+      const wb = XLSX.read(buf, { type:"array", raw:true });
+      const ws = wb.Sheets[wb.SheetNames.find(n=>/event atl/i.test(n)) || wb.SheetNames[0]];
+      const evs = evParseSheet(XLSX.utils.sheet_to_json(ws, { header:1, defval:"", raw:false }));
+      localStorage.setItem(EVKEY, JSON.stringify({ updated:new Date().toISOString().slice(0,10), events:evs }));
+      render();
+    }catch(err){ alert(err.message||String(err)); }
+  };
+  const upd = (name, k, v) => { const o = evOverrides(); o[name] = Object.assign({}, o[name], { [k]:v }); localStorage.setItem(EVOVR, JSON.stringify(o)); render(); };
+  document.querySelectorAll("[data-evs]").forEach(i=>i.onchange=()=>upd(i.dataset.evs, "start", i.value));
+  document.querySelectorAll("[data-eve]").forEach(i=>i.onchange=()=>upd(i.dataset.eve, "end", i.value));
+  $("evDl").onclick = ()=>{
+    const R = evCompute();
+    const rek = [["event","tempat","mulai","selesai","kode","noa_data_das","noa_di_sheet","emas30","emas50","eligible","perlu_review","tidak_eligible","total_pembelian","total_gram","total_cashback"]];
+    R.evs.forEach(b=>{ const e=b.ev; rek.push([e.name,e.place,e.start||"",e.end||"",e.codes.map(c=>c.program+c.suffix).join(", "),String(Object.keys(b.acc).length),e.noaSheet==null?"":String(e.noaSheet),String(b.p30),String(b.p50),String(b.el),String(b.rv),String(b.no),String(b.beli),String(+b.gram.toFixed(4)),String(b.cb)]); });
+    R.groups.forEach(g=>rek.push([g.group,"","","","",String(Object.keys(g.acc).length),"",String(g.p30),String(g.p50),String(g.el),String(g.rv),String(g.no),String(g.beli),String(+g.gram.toFixed(4)),String(g.cb)]));
+    const atr = [["tanggal_file","program","tanggal_transaksi","kodepromo","nama","account_no","status_validasi","event","cara_cocok"]];
+    state.res.allE.forEach(x=>atr.push([x.pair.date,x.pair.program,dateOf(x.row.tanggal_transaksi),str(x.row.kodepromo),str(x.row.name),str(x.row.account_no),x.status,x.att.ev?x.att.ev.name:x.att.group,x.att.method]));
+    const daf = [["event","tanggal_di_sheet","mulai","selesai","kode","promo","noa_di_sheet","catatan"]];
+    R.events.forEach(e=>daf.push([e.name,e.tanggal,e.start||"",e.end||"",e.codes.map(c=>c.program+c.suffix).join(", "),e.promo,e.noaSheet==null?"":String(e.noaSheet),e.warn.join("; ")]));
+    save(`KILAU_Rekap_Event_${suffix()}.xlsx`, wbBytes([["Rekap Event",rek],["Atribusi Nasabah",atr],["Daftar Event",daf]]));
+  };
 }
 </script></body></html>
