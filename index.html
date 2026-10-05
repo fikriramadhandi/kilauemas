@@ -627,7 +627,7 @@ function render(){
   // file list
   let fl = `<div class="files"><div class="scroll"><table><thead><tr><th>Tanggal</th><th>Program</th><th>Data Eligible</th><th>Multiposting</th><th>Eligible</th><th>Perlu review</th><th>Tidak eligible</th><th>Details diperbaiki</th></tr></thead><tbody>`;
   list.forEach(p=>{ const k=s=>p.elig.filter(x=>x.status===s).length;
-    fl += `<tr><td class="mono">${esc(p.date)}</td><td>${p.program}</td><td>${p.e?`<span class="ok">${p.e.rows.length} baris</span>`:'<span class="miss">tidak ada</span>'}</td><td>${p.m?`<span class="ok">${p.m.rows.length} baris</span>`:'<span class="miss">tidak ada</span>'}</td><td class="mono">${k("Eligible")}</td><td class="mono">${k("Perlu review")}</td><td class="mono">${k("Tidak eligible")}</td><td class="mono">${p.mp.rows.filter(isLong).length}</td></tr>`; });
+    fl += `<tr><td class="mono">${esc(p.date)}</td><td>${p.program}</td><td>${p.e?`<span class="ok">${p.e.rows.length} baris</span>`:'<span class="miss">tidak ada</span>'}</td><td>${p.m?(p.m.rows.length?`<span class="ok">${p.m.rows.length} baris</span>`:'<span class="msg">0 baris, tidak dibalas</span>'):'<span class="miss">tidak ada</span>'}</td><td class="mono">${k("Eligible")}</td><td class="mono">${k("Perlu review")}</td><td class="mono">${k("Tidak eligible")}</td><td class="mono">${p.mp.rows.filter(isLong).length}</td></tr>`; });
   fl += `</tbody></table></div><div class="toolbar"><button class="ghost" id="clearFiles">Hapus semua file</button><span class="msg">Tambah file lagi kapan saja; file dengan nama sama akan diganti.</span></div></div>`;
   $("fileList").innerHTML = fl;
   $("clearFiles").onclick = ()=>{ state.files=[]; $("nameAll").textContent=""; $("dropAll").classList.remove("done"); run(); };
@@ -1006,8 +1006,10 @@ function replyBody(p){
 async function downloadPackage(){
   const msg = $("dlMsg");
   if (typeof JSZip === "undefined"){ msg.textContent = "Komponen ZIP gagal dimuat, muat ulang halaman."; return; }
-  const pairs = state.res.list.filter(p=>p.m);
-  if (!pairs.length){ msg.textContent = "Belum ada File Multiposting."; return; }
+  const all = state.res.list.filter(p=>p.m);
+  if (!all.length){ msg.textContent = "Belum ada File Multiposting."; return; }
+  const pairs = all.filter(p=>p.m.rows.length>0);   // file 0 transaksi tidak dibalas
+  if (!pairs.length){ msg.textContent = "Semua file berisi 0 transaksi, tidak ada yang perlu dibalas."; return; }
   const zip = new JSZip();
   pairs.forEach(p=>{
     const fx = fixName(p.m.name);
@@ -1016,6 +1018,8 @@ async function downloadPackage(){
   });
   const bytes = await zip.generateAsync({ type:"uint8array" });
   await save(`KILAU_Paket_Balasan_${suffix()}.zip`, bytes);
+  const nol = all.length - pairs.length;
+  if (nol) msg.textContent += ` ${nol} hari berisi 0 transaksi tidak dimasukkan (tidak perlu dibalas).`;
 }
 
 init();
@@ -1033,9 +1037,14 @@ function sentMap(){ try{ return JSON.parse(localStorage.getItem(SKEY)||"{}")||{}
 function replyHtml(){
   const pairs = state.res.list.filter(p=>p.m), sent = sentMap();
   const done = pairs.filter(p=>sent[p.key]).length;
-  let h = `<div class="pad"><p class="msg">Untuk Outlook Web: buka email DAS sesuai kata kunci, klik <b>Reply all</b>, tempel isi email, lalu lampirkan file FIX dan PDF Berita Acara. Terkirim: <b>${done} dari ${pairs.length}</b>.</p></div>`;
+  const nol = pairs.filter(p=>!p.m.rows.length).length;
+  let h = `<div class="pad"><p class="msg">Untuk Outlook Web: buka email DAS sesuai kata kunci, klik <b>Reply all</b>, tempel isi email, lalu lampirkan file FIX dan PDF Berita Acara. Terkirim: <b>${done} dari ${pairs.length - nol}</b>${nol?` (${nol} hari berisi 0 transaksi tidak perlu dibalas)`:""}.</p></div>`;
   h += `<div class="scroll"><table><thead><tr><th>Terkirim</th><th>Tanggal</th><th>Program</th><th>Kondisi</th><th>Kata kunci cari</th><th>Aksi</th></tr></thead><tbody>`;
   pairs.forEach(p=>{
+    if (!p.m.rows.length){
+      h += `<tr><td class="msg">–</td><td class="mono">${esc(p.date)}</td><td>${p.program}</td><td><span class="pill p-ok" style="background:var(--bg);color:var(--muted)">0 transaksi</span></td><td colspan="2" class="msg">Tidak perlu dibalas.</td></tr>`;
+      return;
+    }
     const kw = `Periode Data ${p.date}`, clean = replyBody(p).includes("bersih=1");
     h += `<tr class="${sent[p.key]?"st-ok":clean?"":"st-rv"}">
       <td><button class="ghost" data-rp="sent" data-k="${esc(p.key)}" aria-pressed="${!!sent[p.key]}">${sent[p.key]?"✓ Sudah":"Tandai"}</button></td>
