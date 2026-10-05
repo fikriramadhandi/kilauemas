@@ -869,9 +869,13 @@ Jawab HANYA dengan JSON: {"insights":[{"judul":"...","isi":"..."}],"email":{"sub
 
 // ===== Paket balasan email per hari =====
 const ECFG = "kilau-email-cfg-v1";
-const EDEF = { sapaan:"Dear Mba Annisa dan tim DBO,", nama:"", ttd:"Bullion Business Group\nPT Bank Syariah Indonesia (Persero) Tbk.\nThe Tower, 23rd floor" };
+const EDEF = { sapaan:"Dear Mba Winda dan tim DBO,", nama:"", ttd:"Bullion Business Group\nPT Bank Syariah Indonesia (Persero) Tbk.\nThe Tower, 21st floor" };
+const EOLD = { sapaan:"Dear Mba Annisa dan tim DBO,", ttd:"Bullion Business Group\nPT Bank Syariah Indonesia (Persero) Tbk.\nThe Tower, 23rd floor" };
 function loadEmailCfg(){ let c={}; try{ c=JSON.parse(localStorage.getItem(ECFG)||"{}")||{}; }catch(_){}
-  $("e_sapaan").value = c.sapaan ?? EDEF.sapaan; $("e_nama").value = c.nama ?? EDEF.nama; $("e_ttd").value = c.ttd ?? EDEF.ttd; }
+  // pengaturan lama yang masih memakai nilai bawaan lama diganti ke nilai baru
+  if (c.sapaan === EOLD.sapaan) c.sapaan = EDEF.sapaan;
+  if (c.ttd === EOLD.ttd) c.ttd = EDEF.ttd;
+  $("e_sapaan").value = c.sapaan ?? EDEF.sapaan; $("e_nama").value = c.nama ?? EDEF.nama; $("e_ttd").value = c.ttd ?? EDEF.ttd; saveEmailCfg(); }
 function saveEmailCfg(){ try{ localStorage.setItem(ECFG, JSON.stringify({ sapaan:$("e_sapaan").value, nama:$("e_nama").value, ttd:$("e_ttd").value })); }catch(_){} }
 const BLN = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
 function periodeTxt(r){ const a=toD(r.periodStart), b=toD(r.periodEnd);
@@ -898,7 +902,9 @@ function replyBody(p){
       t += "\n";
     }
     if (rev.length){ t += `Data berikut masih kami konfirmasi:\n`; rev.forEach(x=>{ t += `- ${x.row.name} (${x.row.account_no}): ${x.issues.map(i=>i.msg).join("; ")}\n`; }); t += "\n"; }
-    t += `Selain data di atas, sebanyak ${kept.length} transaksi dengan total cashback Rp${Number(total).toLocaleString("id-ID")} sudah sesuai dan mohon dapat ditindaklanjuti oleh tim DBO.\n\n`;
+    const good = rows.filter(x=>x.eligStatus!=="Tidak eligible" && x.eligStatus!=="Tidak ditemukan");
+    const goodTot = good.reduce((a,x)=>a+(Number(x.row.debit_amount)||0),0);
+    t += `Selain data di atas, sebanyak ${good.length} transaksi dengan total cashback Rp${Number(goodTot).toLocaleString("id-ID")} sudah sesuai dan mohon dapat ditindaklanjuti oleh tim DBO.\n\n`;
   }
   t += `Namun, terdapat perubahan sumber pengkreditan dana pembayaran. Berikut kami lampirkan berita acara perubahan sumber dan file multi-posting yang debit account-nya sudah disesuaikan. Mohon dapat ditindaklanjuti sesuai dengan berita acara dan file multi-posting tersebut.\n\n`;
   if (long.length){ t += `Sebagai catatan, kolom details yang melebihi ${r.maxDetails} karakter telah kami sesuaikan:\n`; long.forEach(x=>{ t += `- Credit acc ${x.row.credit_acc}: "${str(x.row.details).trim()}" menjadi "${x.fixed.details}"\n`; }); t += "\n"; }
