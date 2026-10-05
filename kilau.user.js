@@ -6,8 +6,8 @@
 // @match        https://outlook.office.com/*
 // @match        https://outlook.office365.com/*
 // @match        https://outlook.cloud.microsoft/*
-// @updateURL    https://NAMA-DOMAIN.vercel.app/kilau.user.js
-// @downloadURL  https://NAMA-DOMAIN.vercel.app/kilau.user.js
+// @updateURL    https://kilauemas-phi.vercel.app/kilau.user.js
+// @downloadURL  https://kilauemas-phi.vercel.app/kilau.user.js
 // @grant        GM_xmlhttpRequest
 // @connect      script.google.com
 // @connect      script.googleusercontent.com
