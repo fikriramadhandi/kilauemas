@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         KILAU – Balas Otomatis (Outlook Web)
 // @namespace    kilau.bbg.bsi
-// @version      1.3.0
+// @version      1.4.0
 // @description  Membalas (Reply all) email "[DAS] - FILE MULTIPOSTING" per hari dengan file FIX + Berita Acara + isi email dari paket KILAU.
 // @match        https://outlook.office.com/*
 // @match        https://outlook.office365.com/*
 // @match        https://outlook.cloud.microsoft/*
-// @updateURL    https://kilauemas-phi.vercel.app/kilau.user.js
-// @downloadURL  https://kilauemas-phi.vercel.app/kilau.user.js
+// @updateURL    https://NAMA-DOMAIN.vercel.app/kilau.user.js
+// @downloadURL  https://NAMA-DOMAIN.vercel.app/kilau.user.js
 // @grant        GM_xmlhttpRequest
 // @connect      script.google.com
 // @connect      script.googleusercontent.com
@@ -133,7 +133,8 @@
       h("div", { class: "row" },
         h("button", { id: "start", text: "Mulai", disabled: "" }), h("button", { class: "g", id: "stop", text: "Stop", disabled: "" }),
         h("button", { class: "g", id: "diag", text: "Diagnosa" }), h("button", { class: "g", id: "reset", text: "Reset status" })),
-      h("div", { class: "row" }, h("button", { class: "g", id: "sentAll", text: "Draft sudah saya kirim → tandai Terkirim" })),
+      h("div", { class: "row" }, h("button", { class: "g", id: "sentAll", text: "Draft sudah saya kirim → tandai Terkirim" }),
+        h("button", { class: "g", id: "sync", text: "Sinkronkan status ke tracker" })),
       h("div", { class: "log", id: "log" })));
   root.append(style, box);
   const $ = id => root.getElementById(id);
@@ -392,6 +393,22 @@
     if (!confirm(`Tandai ${list.length} hari ini sebagai TERKIRIM?\n\n${list.map(i => `${i.date} ${i.prog}`).join("\n")}\n\nPastikan draft-nya memang sudah dikirim dari folder Drafts.`)) return;
     for (const i of list) { markDone(i.key, "terkirim (manual)"); await pushLog(i, "Terkirim", i.nAsli, "dikirim manual dari Drafts"); log(`✓ ${i.date} ${i.prog} ditandai Terkirim.`, "ok"); }
     renderList();
+  };
+  $("sync").onclick = async () => {
+    if (!cfg().url) { log("Tracker belum diatur.", "warn"); return; }
+    try { await pullStatus(); } catch (e) { log(`Tracker: ${e.message}`, "err"); return; }
+    const done = doneMap(); let n = 0;
+    for (const i of state.items) {
+      const v = done[i.key]; if (!v) continue;
+      const st = /^terkirim/i.test(v) ? "Terkirim" : /^draft/i.test(v) ? "Draft" : /0 transaksi/i.test(v) ? "Tidak ada email" : null;
+      if (!st) continue;
+      const r = remoteOf(i);
+      if (r && r.status.toLowerCase() === st.toLowerCase()) continue;
+      await pushLog(i, st, st === "Tidak ada email" ? 0 : i.nAsli, "sinkron dari status lokal"); n++;
+      log(`↑ ${i.date} ${i.prog}: ${st}`, "ok");
+    }
+    try { await pullStatus(); } catch (_) {}
+    renderList(); log(n ? `Sinkron selesai: ${n} status dikirim ke tracker.` : "Semua status lokal sudah sama dengan tracker.", "ok");
   };
   $("stop").onclick = () => { state.stop = true; state.waitResolve && state.waitResolve("skip"); log("Menghentikan…", "warn"); };
 

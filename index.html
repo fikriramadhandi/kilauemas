@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>KILAU · Cek &amp; Gabung Emas30 / Emas50</title>
+<title>KILAU · Kerja Instan, Laporan Akurat &amp; Utuh</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
 <script>/* SheetJS 0.18.5 (inline) */
@@ -158,9 +158,67 @@ table input[type=date]{font:inherit;font-size:12px;padding:3px;border:1px solid 
 .err{background:var(--red-soft);color:var(--red);padding:12px 16px;border-radius:8px;margin-top:16px}
 @media (max-width:600px){h1{font-size:22px}.tally b{font-size:24px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* ===== Platform: navigasi & panduan ===== */
+.topbar{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line)}
+.topbar .in{max-width:1180px;margin:0 auto;padding:0 20px;display:flex;align-items:center;gap:18px;min-height:56px;flex-wrap:wrap}
+.brand{display:flex;align-items:baseline;gap:8px;text-decoration:none;color:var(--ink)}
+.brand b{font-size:20px;font-weight:900;color:var(--blue);letter-spacing:.02em}
+.brand span{font-size:12px;color:var(--muted)}
+.nav{display:flex;gap:2px;margin-left:auto;flex-wrap:wrap}
+.nav a{padding:17px 12px 15px;text-decoration:none;color:var(--muted);font-weight:700;font-size:14px;border-bottom:3px solid transparent}
+.nav a:hover{color:var(--ink)}
+.nav a[aria-current="page"]{color:var(--blue);border-bottom-color:var(--blue)}
+[data-view][hidden]{display:none!important}
+.doc{max-width:1180px;margin:0 auto;padding:28px 20px 70px;display:grid;grid-template-columns:230px minmax(0,1fr);gap:36px}
+.toc{position:sticky;top:76px;align-self:start;font-size:13.5px}
+.toc p{margin:0 0 8px;font-size:11px;font-weight:900;letter-spacing:.08em;color:var(--orange);text-transform:uppercase}
+.toc a{display:block;padding:5px 10px;color:var(--muted);text-decoration:none;border-left:2px solid var(--line)}
+.toc a:hover{color:var(--blue);border-left-color:var(--blue)}
+.prose{max-width:780px;line-height:1.65}
+.prose h1{font-size:30px;margin:0 0 6px;color:var(--blue);font-weight:900}
+.prose .lead{font-size:16px;color:var(--muted);margin:0 0 28px}
+.prose h2{font-size:21px;margin:40px 0 10px;padding-top:12px;border-top:1px solid var(--line);color:var(--ink)}
+.prose h3{font-size:16px;margin:22px 0 6px}
+.prose ol,.prose ul{padding-left:22px} .prose li{margin:4px 0}
+.prose code,.prose kbd{font-family:Consolas,Menlo,monospace;font-size:.9em;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+.prose table{margin:10px 0 16px;font-size:13.5px}
+.prose a{color:var(--blue)}
+.note{border-left:4px solid var(--orange);background:var(--panel);padding:10px 14px;border-radius:0 8px 8px 0;margin:14px 0;font-size:14px}
+.note.ok{border-left-color:var(--green)} .note.bad{border-left-color:var(--red)}
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:14px 0 6px;counter-reset:f}
+.flow div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:13px;counter-increment:f}
+.flow div::before{content:counter(f);display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--blue);color:#fff;font-weight:900;font-size:12px;margin-bottom:6px}
+.flow b{display:block;font-size:14px;color:var(--ink)}
+.checklist{list-style:none;padding:0!important}
+.checklist li{display:flex;gap:10px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:8px 0}
+.checklist input{width:18px;height:18px;margin-top:3px;flex:none;accent-color:var(--green)}
+.checklist li.done{opacity:.6} .checklist li.done > div > b:first-child{text-decoration:line-through}
+.progress{height:8px;background:var(--bg);border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:8px 0 2px}
+.progress i{display:block;height:100%;background:var(--green);width:0;transition:width .2s}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:16px 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+.card h3{margin:0;font-size:16px}
+.card p{margin:0;font-size:13.5px;color:var(--muted)}
+.card .btn{align-self:flex-start;margin-top:auto}
+a.btn{display:inline-block;text-decoration:none;font-weight:700;border-radius:6px;padding:9px 14px;border:1px solid var(--blue);background:var(--blue);color:#fff;font-size:14px}
+a.btn.ghost{background:transparent;color:var(--blue)}
+a.btn.off{opacity:.45;pointer-events:none}
+details.faq{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin:8px 0}
+details.faq summary{cursor:pointer;font-weight:700}
+@media (max-width:860px){.doc{grid-template-columns:1fr}.toc{position:static;display:flex;flex-wrap:wrap;gap:4px}.toc p{width:100%}.toc a{border:1px solid var(--line);border-radius:999px;padding:4px 10px}}
 </style>
 </head>
 <body>
+<div class="topbar"><div class="in">
+  <a class="brand" href="#proses"><b>KILAU</b><span>Kerja Instan, Laporan Akurat &amp; Utuh</span></a>
+  <nav class="nav" aria-label="Menu utama">
+    <a href="#proses" data-nav="proses">Proses Data</a>
+    <a href="#panduan" data-nav="panduan">Panduan</a>
+    <a href="#unduhan" data-nav="unduhan">Unduhan</a>
+    <a href="#tentang" data-nav="tentang">Tentang</a>
+  </nav>
+</div></div>
+<div data-view="proses">
 <div class="wrap">
 <header>
   <div>
@@ -210,6 +268,234 @@ table input[type=date]{font:inherit;font-size:12px;padding:3px;border:1px solid 
 
 <p class="foot">File diolah di browser ini. Saat tombol AI diklik, hanya angka ringkasan yang dikirim ke AI. Riwayat nasabah (untuk cek duplikat antarhari) tersimpan di browser ini: <span id="histCount">0</span> rekening. <button class="ghost" id="clearHist">Hapus riwayat</button></p>
 </div>
+</div>
+<!-- ===================== PANDUAN ===================== -->
+<div data-view="panduan" hidden>
+<div class="doc">
+<nav class="toc" aria-label="Daftar isi panduan">
+  <p>Panduan</p>
+  <a href="#panduan/alur">Gambaran alur</a>
+  <a href="#panduan/mulai">Persiapan pertama kali</a>
+  <a href="#panduan/rutin">Langkah rutin</a>
+  <a href="#panduan/status">Membaca hasil validasi</a>
+  <a href="#panduan/balas">Membalas email ke DBO</a>
+  <a href="#panduan/tracker">Tracker tim</a>
+  <a href="#panduan/event">Event tracker</a>
+  <a href="#panduan/pedoman">Pedoman kerja tim</a>
+  <a href="#panduan/masalah">Kalau ada masalah</a>
+  <a href="#panduan/faq">Pertanyaan umum</a>
+</nav>
+<article class="prose">
+  <h1>Panduan KILAU</h1>
+  <p class="lead">Kerja Instan, Laporan Akurat &amp; Utuh. Satu alur untuk memvalidasi data cashback Emas30/Emas50 dari DAS, menyiapkan file multiposting untuk DBO, membalas email harian, dan memantau hasil event.</p>
+
+  <h2 id="alur">Gambaran alur</h2>
+  <div class="flow">
+    <div><b>Unduh lampiran</b>Email harian DAS: Data Eligible + File Multiposting.</div>
+    <div><b>Proses di KILAU</b>Validasi otomatis sesuai Memo 06/479-1/BBG.</div>
+    <div><b>Tinjau</b>Cek baris yang ditandai Perlu review atau Tidak eligible.</div>
+    <div><b>Unduh paket balasan</b>File FIX per hari + isi email per hari.</div>
+    <div><b>Balas otomatis</b>Asisten Outlook Web membuat Reply all per email.</div>
+    <div><b>Kirim &amp; catat</b>Status tercatat di tracker tim.</div>
+  </div>
+  <p>Semua file diolah di browser masing-masing. Data nasabah tidak dikirim ke server mana pun.</p>
+
+  <h2 id="mulai">Persiapan pertama kali</h2>
+  <p>Cukup sekali per orang, sekitar 10 menit. Centang setiap langkah yang sudah selesai; progresnya tersimpan di browser ini.</p>
+  <div class="progress"><i id="ckBar"></i></div><p class="msg" id="ckTxt"></p>
+  <ul class="checklist" id="checklist">
+    <li><input type="checkbox" data-ck="chrome"><div><b>Pakai Google Chrome</b><br>Semua langkah di bawah dibuat untuk Chrome di Mac maupun Windows.</div></li>
+    <li><input type="checkbox" data-ck="tm"><div><b>Pasang ekstensi Tampermonkey</b><br>Dari Chrome Web Store. Lalu buka <code>chrome://extensions</code> → <b>Details</b> pada Tampermonkey → nyalakan <b>Allow User Scripts</b>.</div></li>
+    <li><input type="checkbox" data-ck="us"><div><b>Pasang Asisten Outlook Web</b><br>Buka halaman <a href="#unduhan">Unduhan</a> → klik <b>Pasang asisten</b> → klik <b>Install</b> di halaman Tampermonkey.</div></li>
+    <li><input type="checkbox" data-ck="owa"><div><b>Atur Outlook Web</b><br>Settings → Mail → Layout → <b>Message organization: Show email as individual messages</b>. Pastikan Reading pane aktif (kanan atau bawah) dan bahasa tampilan English.</div></li>
+    <li><input type="checkbox" data-ck="folder"><div><b>Siapkan folder kerja</b><br>Buat folder <code>Emas30_50</code> dengan subfolder <code>Balasan</code>. Simpan PDF Berita Acara yang berlaku di dalam <code>Balasan</code>.</div></li>
+    <li><input type="checkbox" data-ck="email"><div><b>Isi identitas email balasan</b><br>Di halaman <a href="#proses">Proses Data</a> → <b>Aturan pengecekan → Email balasan ke DBO</b>: isi nama lo, cek sapaan dan tanda tangan.</div></li>
+    <li><input type="checkbox" data-ck="trk"><div><b>Hubungkan tracker tim</b><br>Di Outlook Web, buka panel <b>KILAU – Balas Otomatis</b> → <b>Tracker Google Sheets</b>: isi URL Web App, token (minta ke PIC), dan nama → <b>Simpan &amp; tes koneksi</b> → izinkan domain di Tampermonkey.</div></li>
+    <li><input type="checkbox" data-ck="uji"><div><b>Uji coba 3 email</b><br>Jalankan alur rutin dengan mode <b>DRAFT</b>, centang <b>Konfirmasi</b> dan <b>Uji coba maksimal 3 email</b>. Cek hasilnya di folder Drafts, lalu hapus draft uji coba kalau tidak dikirim.</div></li>
+  </ul>
+
+  <h2 id="rutin">Langkah rutin</h2>
+  <p>Bisa dikerjakan harian, atau sekaligus untuk data yang menumpuk beberapa hari sampai sebulan.</p>
+  <h3>1. Unduh lampiran dari Outlook Web</h3>
+  <ol>
+    <li>Buka folder email DAS (misalnya <b>DAS Emas30-50</b>).</li>
+    <li>Di setiap email "[DAS] - FILE MULTIPOSTING …" pada rentang tanggal yang akan diproses, klik <b>Download all</b>. Hasilnya ZIP per email, tidak perlu diekstrak.</li>
+    <li>Simpan semua ZIP ke folder <code>Emas30_50</code>.</li>
+  </ol>
+  <h3>2. Proses di KILAU</h3>
+  <ol>
+    <li>Buka <a href="#proses">Proses Data</a> → <b>Pilih folder</b> → pilih <code>Emas30_50</code> → <b>Upload</b>.</li>
+    <li>Cek tabel daftar file: setiap tanggal harus punya Data Eligible dan Multiposting. Hari dengan 0 transaksi otomatis ditandai "tidak dibalas".</li>
+  </ol>
+  <h3>3. Tinjau hasil</h3>
+  <ol>
+    <li>Tab <b>Data Eligible</b> → filter <b>Hanya yang bermasalah</b>. Baca alasan di kolom Catatan.</li>
+    <li>Kalau nasabah tidak eligible tidak boleh ikut dikredit, centang <b>Keluarkan nasabah tidak eligible</b>.</li>
+  </ol>
+  <h3>4. Unduh paket balasan</h3>
+  <ol>
+    <li>Klik <b>Unduh paket balasan per hari (.zip)</b>.</li>
+    <li>Ekstrak ke folder <code>Balasan</code>. Kalau ditanya, pilih <b>Replace</b>.</li>
+    <li>Untuk arsip, unduh juga <b>Hasil validasi</b>.</li>
+  </ol>
+  <h3>5. Balas email</h3>
+  <p>Lihat bagian <a href="#panduan/balas">Membalas email ke DBO</a>.</p>
+  <div class="note">Masukkan <b>semua file sejak awal periode</b> setiap kali memproses, bukan hanya hari baru. Riwayat duplikat tersimpan per browser, jadi cara ini memastikan nasabah dobel antarhari tetap terdeteksi.</div>
+
+  <h2 id="status">Membaca hasil validasi</h2>
+  <table><thead><tr><th>Status</th><th>Artinya</th><th>Tindakan</th></tr></thead><tbody>
+    <tr><td><span class="pill p-ok">Eligible</span></td><td>Semua syarat memo terpenuhi.</td><td>Tidak perlu tindakan.</td></tr>
+    <tr><td><span class="pill p-rv">Perlu review</span></td><td>Ada hal yang perlu dicek manusia, misalnya nasabah pernah muncul di data sebelumnya.</td><td>Cek manual, lalu putuskan.</td></tr>
+    <tr><td><span class="pill p-no">Tidak eligible</span></td><td>Melanggar syarat memo.</td><td>Keluarkan dari multiposting atau minta DBO tidak memproses.</td></tr>
+  </tbody></table>
+  <h3>Aturan yang dicek</h3>
+  <ul>
+    <li><b>Periode:</b> tanggal transaksi 1 April s.d. 31 Desember 2026.</li>
+    <li><b>Kode promo:</b> mengandung EMAS30 atau EMAS50 sesuai programnya. NIP tidak dicek; huruf kecil dan kode event (mis. EMAS30NU) tetap sah.</li>
+    <li><b>Type Trx:</b> harus EMAS_OPEN_ACCOUNT.</li>
+    <li><b>Minimal pembelian:</b> EMAS50 minimal Rp200.000.</li>
+    <li><b>Nominal cashback:</b> Rp30.000 (EMAS30) atau Rp50.000 (EMAS50).</li>
+    <li><b>Kuota:</b> 8.300 (EMAS30) dan 5.000 (EMAS50).</li>
+    <li><b>Duplikat:</b> CIF atau rekening yang sama di hari berbeda ditolak (kemunculan kedua).</li>
+    <li><b>Multiposting:</b> debit acc diganti ke 7900062626 (BA 06/0020-BA/BBG); details maksimal 30 karakter, otomatis dipendekkan.</li>
+  </ul>
+  <p>Kalau terbit memo atau BA baru, ubah angkanya di <b>Aturan pengecekan</b> sebelum memproses data.</p>
+
+  <h2 id="balas">Membalas email ke DBO</h2>
+  <ol>
+    <li>Buka Outlook Web → klik bar hijau <b>KILAU – Balas Otomatis</b> di kanan bawah.</li>
+    <li><b>Pilih file</b> → buka folder <code>Balasan</code> → <kbd>Ctrl/Cmd+A</kbd> → Open. Pastikan nama PDF BA tampil hijau.</li>
+    <li>Pilih mode <b>DRAFT</b> dan centang <b>Konfirmasi</b> (disarankan). Hapus centang <b>Uji coba</b> kalau sudah lewat masa uji coba.</li>
+    <li>Klik <b>Mulai</b> dan jangan klik apa pun di Outlook selama proses berjalan. Di setiap jeda kuning, cek penerima, isi email, dan 2 lampiran, lalu klik <b>Lanjut</b>.</li>
+    <li>Buka folder <b>Drafts</b>, kirim draft-draft-nya.</li>
+    <li>Kembali ke panel → klik <b>Draft sudah saya kirim → tandai Terkirim</b>.</li>
+  </ol>
+  <div class="note ok">Asisten otomatis melewati hari yang sudah Terkirim oleh siapa pun, hari yang sedang Draft, dan email berisi 0 transaksi. Kalau jumlah transaksi di email DAS berbeda dengan file, hari itu ditahan untuk dicek manual.</div>
+  <h3>Isi email balasan</h3>
+  <p>Setiap email berisi data hari itu sendiri: tanggal dan program sesuai subjek, catatan nasabah yang tidak eligible (kalau ada), details yang dipendekkan (kalau ada), lampiran file FIX hari itu, dan PDF Berita Acara. Sapaan dan tanda tangan diambil dari <b>Aturan pengecekan → Email balasan ke DBO</b>.</p>
+  <h3>Alternatif: Outlook classic di Windows</h3>
+  <p>Kalau memakai Outlook desktop versi classic, macro di halaman <a href="#unduhan">Unduhan</a> bisa membuat semua draft balasan sekaligus. Hasil draft-nya juga muncul di Outlook Web.</p>
+
+  <h2 id="tracker">Tracker tim</h2>
+  <p>Google Sheet bersama yang mencatat status balasan per tanggal dan program, supaya tidak ada email yang dibalas dua kali.</p>
+  <ul>
+    <li><b>Dashboard:</b> status terbaru setiap tanggal. Hijau Terkirim, kuning Draft, merah Gagal, abu-abu Belum.</li>
+    <li><b>Log:</b> catatan setiap balasan. Terisi otomatis dari asisten, dan boleh ditambah manual.</li>
+  </ul>
+  <h3>Kapan menambah baris manual di Log</h3>
+  <ul>
+    <li>Email dibalas tanpa asisten → status <b>Terkirim</b>.</li>
+    <li>Hari tanpa email DAS (libur) → status <b>Tidak ada email</b>.</li>
+    <li>Draft batal dikirim dan perlu dibuat ulang → status <b>Gagal</b>, lalu jalankan asisten lagi.</li>
+  </ul>
+  <p>Format tanggal data: <code>2026-08-15</code>. Status yang dipakai dashboard selalu baris yang paling akhir.</p>
+  <p>Kalau ada hari yang di panel tertulis "terkirim" (huruf kecil) tapi di tracker masih Belum, klik <b>Sinkronkan status ke tracker</b> di panel.</p>
+  <p id="trkLinkP" hidden><a class="btn ghost" id="trkLink" target="_blank" rel="noopener">Buka tracker tim</a></p>
+
+  <h2 id="event">Event tracker</h2>
+  <p>Tab <b>Event</b> di Proses Data memasangkan setiap nasabah ke event berdasarkan kode promo dan tanggal, dari daftar di sheet <b>EVENT ATL</b>.</p>
+  <ul>
+    <li><b>Kode event</b> (huruf antara EMAS30/EMAS50 dan NIP, mis. <code>EMAS30NU</code>) → dipasangkan ke event dengan kode tersebut. Paling akurat.</li>
+    <li><b>Kode polos</b> (<code>EMAS30</code> + NIP) → dipasangkan ke event tanpa kode khusus di tanggal transaksi yang sama (toleransi bisa diatur).</li>
+    <li>Transaksi yang tidak bisa dipasangkan dikelompokkan terpisah beserta alasannya.</li>
+  </ul>
+  <h3>Memperbarui daftar event</h3>
+  <ol>
+    <li>Buka sheet <b>EVENT ATL</b> → <b>File → Download → CSV</b>.</li>
+    <li>Di tab Event, klik <b>Perbarui dari CSV EVENT ATL</b> dan pilih file tadi.</li>
+  </ol>
+  <div class="note">Supaya hasil event akurat, setiap event baru sebaiknya memakai <b>kode event sendiri</b> (dua atau tiga huruf, unik) di kolom Promo/Program. Event berkode polos di tanggal yang sama tidak bisa dibedakan.</div>
+
+  <h2 id="pedoman">Pedoman kerja tim</h2>
+  <h3>Pembagian kerja</h3>
+  <ul>
+    <li>Sepakati siapa memproses apa, misalnya per program (EMAS30/EMAS50) atau per rentang tanggal. Tracker mencegah dobel, tetapi pembagian yang jelas mencegah dua orang bekerja sia-sia.</li>
+    <li>Selalu hubungkan tracker sebelum klik Mulai.</li>
+  </ul>
+  <h3>Aturan pengiriman</h3>
+  <ul>
+    <li>Gunakan mode <b>DRAFT</b>. Mode KIRIM langsung hanya untuk yang sudah terbiasa dan sudah memastikan hasilnya konsisten.</li>
+    <li>Email DAS berisi <b>0 transaksi tidak dibalas</b>.</li>
+    <li>Hari dengan <b>jumlah transaksi tidak cocok</b> atau nasabah <b>tidak eligible</b> dicek manual sebelum dibalas.</li>
+    <li>Jangan klik <b>Reset status</b> kecuali memang ingin membuat ulang semua balasan.</li>
+  </ul>
+  <h3>Perubahan ketentuan</h3>
+  <ul>
+    <li><b>BA baru:</b> ganti PDF di folder <code>Balasan</code> dan ubah <b>Debit acc baru</b> di Aturan pengecekan.</li>
+    <li><b>Memo baru / periode berubah:</b> ubah angka di Aturan pengecekan.</li>
+    <li><b>Penerima atau tanda tangan berubah:</b> ubah di Email balasan ke DBO, lalu unduh ulang paket balasan.</li>
+  </ul>
+  <h3>Keamanan data</h3>
+  <ul>
+    <li>File Excel diolah di browser; tidak diunggah ke server KILAU.</li>
+    <li>Tracker Google Sheets hanya berisi tanggal, program, status, jumlah, dan nama pemroses, tanpa data nasabah.</li>
+    <li>Jangan membagikan token tracker di luar tim. Bagikan link KILAU hanya lewat jalur internal.</li>
+    <li>Hapus file ZIP dan folder kerja dari laptop pinjaman setelah selesai.</li>
+  </ul>
+
+  <h2 id="masalah">Kalau ada masalah</h2>
+  <table><thead><tr><th>Gejala</th><th>Penyebab umum</th><th>Solusi</th></tr></thead><tbody>
+    <tr><td>Panel KILAU tidak muncul di Outlook Web</td><td>Allow User Scripts mati, atau script belum terpasang</td><td>Cek <code>chrome://extensions</code> → Tampermonkey → Details. Ikon Tampermonkey harus menampilkan angka 1 di Outlook Web.</td></tr>
+    <tr><td>File tidak bisa diupload ke KILAU</td><td>File terkunci label sensitivitas, atau nama file berubah</td><td>Baca pesan merah. Nama file harus diawali <code>Data_Eligible_</code> atau <code>File_Multiposting_</code>.</td></tr>
+    <tr><td>"Tracker: Token salah"</td><td>Token keliru</td><td>Minta token ke PIC, perhatikan huruf besar kecil.</td></tr>
+    <tr><td>"Tidak bisa menghubungi tracker"</td><td>Izin domain belum diberikan</td><td>Izinkan <code>script.google.com</code> di Tampermonkey (Always allow domain).</td></tr>
+    <tr><td>Status Gagal di tracker</td><td>Lihat kolom Catatan di sheet Log</td><td>Hapus draft setengah jadi di Drafts, lalu klik Mulai lagi. Untuk "Jumlah tidak cocok", cek manual dulu.</td></tr>
+    <tr><td>Lampiran gagal ditambahkan otomatis</td><td>Tampilan Outlook Web berubah</td><td>Lampirkan manual, klik Diagnosa di panel, kirim screenshot ke PIC.</td></tr>
+    <tr><td>Dashboard tracker masih "Belum"</td><td>Status hanya tercatat di browser</td><td>Klik <b>Sinkronkan status ke tracker</b> di panel.</td></tr>
+  </tbody></table>
+
+  <h2 id="faq">Pertanyaan umum</h2>
+  <details class="faq"><summary>Apakah data nasabah dikirim ke internet?</summary><p>Tidak. File diproses di browser. Fitur AI (insight dan draf email) hanya tersedia di versi claude.ai dan hanya menerima angka ringkasan.</p></details>
+  <details class="faq"><summary>Kenapa satu tanggal bisa punya dua balasan (EMAS30 dan EMAS50)?</summary><p>DAS mengirim email terpisah per program, jadi setiap program dibalas di email masing-masing.</p></details>
+  <details class="faq"><summary>Bagaimana kalau saya pindah laptop?</summary><p>Ulangi persiapan pertama kali. Status di tracker tetap terbawa, sehingga hari yang sudah dibalas tidak akan diproses ulang.</p></details>
+  <details class="faq"><summary>Kenapa ada nasabah "Perlu review" padahal datanya benar?</summary><p>Biasanya karena nasabah pernah muncul di data yang diproses sebelumnya di browser ini. Pastikan bukan cashback dobel, lalu putuskan manual.</p></details>
+  <details class="faq"><summary>Apakah bisa dipakai untuk program cashback lain?</summary><p>Belum. Aturan saat ini khusus Memo 06/479-1/BBG. Pengembangan untuk program lain ada di rencana berikutnya.</p></details>
+</article>
+</div>
+</div>
+
+<!-- ===================== UNDUHAN ===================== -->
+<div data-view="unduhan" hidden>
+<div class="doc" style="grid-template-columns:1fr">
+<article class="prose" style="max-width:none">
+  <h1>Unduhan &amp; tautan</h1>
+  <p class="lead">Semua komponen KILAU di satu tempat. Ikuti <a href="#panduan/mulai">Persiapan pertama kali</a> untuk urutan pemasangannya.</p>
+  <div class="cards">
+    <div class="card"><h3>Asisten Outlook Web</h3><p>Script Tampermonkey untuk membalas email DAS per hari secara otomatis. Terupdate sendiri setiap ada versi baru.</p><a class="btn" href="kilau.user.js">Pasang asisten</a></div>
+    <div class="card"><h3>Tracker tim</h3><p>Google Sheet bersama berisi status balasan per tanggal. Akses diberikan oleh PIC.</p><a class="btn ghost off" id="trkCard" target="_blank" rel="noopener">Buka tracker</a></div>
+    <div class="card"><h3>Sheet EVENT ATL</h3><p>Daftar event dan kode promo. Unduh CSV-nya untuk memperbarui tab Event.</p><a class="btn ghost off" id="evCard" target="_blank" rel="noopener">Buka sheet event</a></div>
+    <div class="card"><h3>Macro Outlook classic (opsional)</h3><p>Untuk Windows dengan Outlook desktop classic: simpan lampiran dan buat semua draft balasan sekaligus.</p><a class="btn ghost" href="KILAU_Outlook.bas" download>Unduh macro (.bas)</a></div>
+    <div class="card"><h3>Berita Acara</h3><p>PDF BA yang berlaku (06/0020-BA/BBG) dibagikan oleh PIC lewat email atau Teams internal, bukan lewat situs ini.</p></div>
+  </div>
+  <div class="note">Tombol yang tampak pudar belum diatur tautannya. PIC dapat mengisinya di bagian <code>KILAU_CFG</code> pada file <code>index.html</code>.</div>
+</article>
+</div>
+</div>
+
+<!-- ===================== TENTANG ===================== -->
+<div data-view="tentang" hidden>
+<div class="doc" style="grid-template-columns:1fr">
+<article class="prose">
+  <h1>Tentang KILAU</h1>
+  <p class="lead">Kerja Instan, Laporan Akurat &amp; Utuh</p>
+  <p>KILAU dikembangkan oleh tim Bullion Marketing Strategy, Bullion Business Group, PT Bank Syariah Indonesia Tbk, untuk mempercepat dan mengamankan proses validasi cashback program Emas30/Emas50 (Memo 06/479-1/BBG).</p>
+  <table><tbody>
+    <tr><th>Tim pengembang</th><td id="aboutPic"></td></tr>
+    <tr><th>Komponen</th><td>KILAU web (validasi, gabung, paket balasan, dashboard, event tracker) · Asisten Outlook Web (Tampermonkey) · Tracker tim (Google Sheets) · Macro Outlook classic (opsional)</td></tr>
+    <tr><th>Dasar aturan</th><td>Memo 06/479-1/BBG (25 Maret 2026) · BA 06/0020-BA/BBG (3 Agustus 2026)</td></tr>
+    <tr><th>Versi panduan</th><td id="aboutVer"></td></tr>
+  </tbody></table>
+  <h3>Riwayat perubahan</h3>
+  <ul>
+    <li>Pembaruan terkini: email 0 transaksi tidak dibalas; sinkron status ke tracker; event tracker berdasarkan kode promo.</li>
+    <li>Tracker tim Google Sheets dan pencegahan balasan dobel.</li>
+    <li>Asisten Outlook Web untuk balasan per hari.</li>
+    <li>Paket balasan per hari, mode bulk, dashboard kuota.</li>
+  </ul>
+</article>
+</div>
+</div>
+
 <script>
 // ===== Core validation logic (pure functions, no DOM) =====
 const PROGRAMS = {
@@ -1170,4 +1456,39 @@ function evBind(){
     save(`KILAU_Rekap_Event_${suffix()}.xlsx`, wbBytes([["Rekap Event",rek],["Atribusi Nasabah",atr],["Daftar Event",daf]]));
   };
 }
+
+// ===== Platform: konfigurasi, navigasi, checklist =====
+// PIC dapat mengisi tautan di bawah ini (kosongkan jika tidak ingin ditampilkan).
+const KILAU_CFG = {
+  trackerSheet: "",          // contoh: "https://docs.google.com/spreadsheets/d/…/edit"
+  eventSheet: "",            // contoh: tautan sheet Activities (EVENT ATL)
+  pic: "Fikri, Laudy, Yuta · Bullion Marketing Strategy",
+  versiPanduan: "Oktober 2026",
+};
+function kilauRoute(){
+  const h = (location.hash || "#proses").slice(1);
+  const [view, anchor] = h.split("/");
+  const v = ["proses","panduan","unduhan","tentang"].includes(view) ? view : "proses";
+  document.querySelectorAll("[data-view]").forEach(el => { el.hidden = el.dataset.view !== v; });
+  document.querySelectorAll("[data-nav]").forEach(a => { if (a.dataset.nav === v) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
+  if (anchor){ const t = document.getElementById(anchor); if (t) { t.scrollIntoView({ block:"start" }); window.scrollBy(0, -70); } }
+  else window.scrollTo(0, 0);
+}
+function kilauPlatformInit(){
+  const setLink = (id, url) => { const a = document.getElementById(id); if (!a) return; if (url){ a.href = url; a.classList.remove("off"); } };
+  setLink("trkCard", KILAU_CFG.trackerSheet); setLink("evCard", KILAU_CFG.eventSheet);
+  if (KILAU_CFG.trackerSheet){ $("trkLink").href = KILAU_CFG.trackerSheet; $("trkLinkP").hidden = false; }
+  $("aboutPic").textContent = KILAU_CFG.pic; $("aboutVer").textContent = KILAU_CFG.versiPanduan;
+  const CK = "kilau-onboarding-v1";
+  const load = () => { try{ return JSON.parse(localStorage.getItem(CK)||"{}")||{}; }catch(_){ return {}; } };
+  const boxes = [...document.querySelectorAll("[data-ck]")];
+  const paint = () => { const s = load(); let n = 0;
+    boxes.forEach(b => { b.checked = !!s[b.dataset.ck]; b.closest("li").classList.toggle("done", b.checked); if (b.checked) n++; });
+    $("ckBar").style.width = (n / boxes.length * 100) + "%";
+    $("ckTxt").textContent = n === boxes.length ? "Semua langkah persiapan selesai. Siap dipakai." : `${n} dari ${boxes.length} langkah selesai.`; };
+  boxes.forEach(b => b.addEventListener("change", () => { const s = load(); s[b.dataset.ck] = b.checked; try{ localStorage.setItem(CK, JSON.stringify(s)); }catch(_){} paint(); }));
+  paint();
+  window.addEventListener("hashchange", kilauRoute); kilauRoute();
+}
+kilauPlatformInit();
 </script></body></html>
