@@ -434,6 +434,24 @@ tr.st-ok td:first-child,tr.st-rv td:first-child,tr.st-no td:first-child{box-shad
 .progress{border:0;background:var(--seg);height:6px}
 .flow{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media (max-width:700px){.flow{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Tracker view */
+.trk-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:8px 0 14px}
+.trk-bar label{display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--muted)}
+.trk-bar input[type=date],.trk-grid input{font:inherit;font-size:13.5px;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:7px 10px}
+.trk-set{background:var(--panel);border-radius:16px;padding:12px 18px;margin-bottom:18px;box-shadow:var(--shadow)}
+.trk-set summary{cursor:pointer;font-weight:500}
+.trk-grid{display:grid;grid-template-columns:2fr 1fr auto;gap:12px;align-items:end;margin-top:12px}
+.trk-grid label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+@media (max-width:700px){.trk-grid{grid-template-columns:1fr}}
+.trk-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:6px 0 18px}
+.trk-sum div{background:var(--panel);border-radius:16px;padding:14px 18px;box-shadow:var(--shadow)}
+.trk-sum b{display:block;font-size:26px;font-weight:600;letter-spacing:-.02em}
+.trk-sum span{font-size:12.5px;color:var(--muted)}
+.trk-tbl{background:var(--panel);border-radius:16px;box-shadow:var(--shadow);overflow:auto}
+.trk-tbl td,.trk-tbl th{white-space:nowrap}
+.p-none{background:var(--seg,#EEE);color:var(--muted)}
+.trk-tbl tr.wk td:first-child{color:var(--muted)}
 </style>
 </head>
 <body>
@@ -442,6 +460,7 @@ tr.st-ok td:first-child,tr.st-rv td:first-child,tr.st-no td:first-child{box-shad
   <nav class="nav" aria-label="Menu utama">
     <a href="#proses" data-nav="proses">Proses Data</a>
     <a href="#panduan" data-nav="panduan">Panduan</a>
+    <a href="#tracker" data-nav="tracker">Tracker</a>
     <a href="#unduhan" data-nav="unduhan">Unduhan</a>
     <a href="#tentang" data-nav="tentang">Tentang</a>
   </nav>
@@ -619,6 +638,7 @@ tr.st-ok td:first-child,tr.st-rv td:first-child,tr.st-no td:first-child{box-shad
   </ul>
   <p>Format tanggal data: <code>2026-08-15</code>. Status yang dipakai dashboard selalu baris yang paling akhir.</p>
   <p>Kalau ada hari yang di panel tertulis "terkirim" (huruf kecil) tapi di tracker masih Belum, klik <b>Sinkronkan status ke tracker</b> di panel.</p>
+  <p>Rekap status per tanggal juga bisa dilihat langsung di menu <a href="#tracker">Tracker</a> di KILAU: isi URL Web App dan token sekali, lalu klik <b>Muat status</b>.</p>
   <p id="trkLinkP" hidden><a class="btn ghost" id="trkLink" target="_blank" rel="noopener">Buka tracker tim</a></p>
 
   <h2 id="event">Event tracker</h2>
@@ -679,6 +699,33 @@ tr.st-ok td:first-child,tr.st-rv td:first-child,tr.st-no td:first-child{box-shad
   <details class="faq"><summary>Bagaimana kalau saya pindah laptop?</summary><p>Ulangi persiapan pertama kali. Status di tracker tetap terbawa, sehingga hari yang sudah dibalas tidak akan diproses ulang.</p></details>
   <details class="faq"><summary>Kenapa ada nasabah "Perlu review" padahal datanya benar?</summary><p>Biasanya karena nasabah pernah muncul di data yang diproses sebelumnya di browser ini. Pastikan bukan cashback dobel, lalu putuskan manual.</p></details>
   <details class="faq"><summary>Apakah bisa dipakai untuk program cashback lain?</summary><p>Belum. Aturan saat ini khusus Memo 06/479-1/BBG. Pengembangan untuk program lain ada di rencana berikutnya.</p></details>
+</article>
+</div>
+</div>
+
+<!-- ===================== TRACKER ===================== -->
+<div data-view="tracker" hidden>
+<div class="doc" style="grid-template-columns:1fr">
+<article class="prose" style="max-width:none">
+  <h1>Tracker balasan</h1>
+  <p class="lead">Tanggal mana yang sudah dibalas ke DBO dan mana yang belum, langsung dari KILAU Tracker di Google Sheets.</p>
+  <div class="trk-bar">
+    <label>Mulai <input type="date" id="tkFrom"></label>
+    <label>Sampai <input type="date" id="tkTo"></label>
+    <label class="chk"><input type="checkbox" id="tkOnly"> Hanya yang belum selesai</label>
+    <button id="tkLoad">Muat status</button>
+    <a class="btn ghost" id="tkSheet" target="_blank" rel="noopener" hidden>Buka Google Sheet</a>
+    <span class="msg" id="tkMsg" role="status"></span>
+  </div>
+  <details class="trk-set" id="tkSet"><summary>Koneksi tracker</summary>
+    <div class="trk-grid">
+      <label>URL Web App (…/exec)<input type="url" id="tkUrl" placeholder="https://script.google.com/macros/s/…/exec"></label>
+      <label>Token<input type="password" id="tkTok" autocomplete="off"></label>
+      <button class="ghost" id="tkSave">Simpan</button>
+    </div>
+    <p class="msg">Sama dengan URL dan token yang diisi di panel asisten Outlook Web. Tersimpan hanya di browser ini.</p>
+  </details>
+  <div id="tkOut"><p class="msg">Isi koneksi tracker, lalu klik <b>Muat status</b>.</p></div>
 </article>
 </div>
 </div>
@@ -1094,6 +1141,17 @@ function run(){
     p.elig.forEach(x=>{ x.pair=p; x.fixedRow = Object.assign({}, x.row, { kodepromo: str(x.row.kodepromo).trim().toUpperCase() }); allE.push(x); });
     p.mp = p.m ? processMultiposting(p.m.rows, p.elig, rules) : { rows:[], missing:[] };
     p.mp.rows.forEach(x=>{ x.pair=p; allM.push(x); });
+    // Tanggal per baris: file rekap (bulk) berisi banyak tanggal dalam satu file
+    const asOf = new Set(p.elig.map(x=>dateOf(x.row.as_of_dt)).filter(Boolean));
+    const trxD = new Set(p.elig.map(x=>dateOf(x.row.tanggal_transaksi)).filter(Boolean));
+    const field = asOf.size > 1 ? "as_of_dt" : trxD.size > 2 ? "tanggal_transaksi" : null;
+    p.elig.forEach(x=>{ x.d = (field && dateOf(x.row[field])) || p.date; });
+    const accD = {}; p.elig.forEach(x=>{ accD[str(x.row.account_no).trim()] = x.d; });
+    p.mp.rows.forEach(x=>{ x.d = accD[str(x.row.credit_acc).trim()] || (field && dateOf(x.row.trx_date)) || p.date; });
+    p.dates = [...new Set(p.elig.map(x=>x.d).concat(p.mp.rows.map(x=>x.d)))].filter(d=>d && d!=="tanpa-tanggal").sort();
+    if (!p.dates.length && p.date!=="tanpa-tanggal") p.dates = [p.date];
+    p.bulk = p.dates.length > 1;
+    p.label = p.bulk ? `${p.dates[0]} s.d. ${p.dates[p.dates.length-1]}` : p.date;
   });
   // header template
   const eFiles = list.filter(p=>p.e).map(p=>p.e), mFiles = list.filter(p=>p.m).map(p=>p.m);
@@ -1119,14 +1177,21 @@ function run(){
     if (cif && !hist["cif:"+cif]) hist["cif:"+cif]=rec;
   });
   saveHist(hist); showHistCount();
-  const dates = list.map(p=>p.date).filter(d=>d!=="tanpa-tanggal").sort();
+  const dates = [...new Set(list.flatMap(p=>p.dates))].sort();
   const progs = [...new Set(list.map(p=>p.program))].sort();
   state.ai = null; setStep(state.stepDone >= 3 ? 3 : 2);
   state.res = { list, allE, allM, eT, mT, warn, span: dates.length ? (dates[0]===dates[dates.length-1] ? dates[0] : `${dates[0]}_sd_${dates[dates.length-1]}`) : "", progs };
-  $("progBadge").textContent = `${progs.join(" + ")}, ${list.length} hari/program`;
+  $("progBadge").textContent = `${progs.join(" + ")}, ${dates.length} hari data`;
   render();
 }
 
+function perDate(){
+  const m = {};
+  state.res.allE.forEach(x=>{ const t = x.d || x.pair.date, k = t + "|" + x.pair.program;
+    const o = m[k] = m[k] || { tanggal:t, program:x.pair.program, total:0, eligible:0, perlu_review:0, tidak_eligible:0 };
+    o.total++; if (x.status==="Eligible") o.eligible++; else if (x.status==="Perlu review") o.perlu_review++; else o.tidak_eligible++; });
+  return Object.values(m).sort((a,b)=> a.tanggal===b.tanggal ? a.program.localeCompare(b.program) : a.tanggal.localeCompare(b.tanggal));
+}
 function pill(st){ const c = st==="Eligible"?"p-ok":st==="Perlu review"?"p-rv":"p-no"; return `<span class="pill ${c}">${esc(st)}</span>`; }
 function rowCls(st){ return st==="Eligible"?"st-ok":st==="Perlu review"?"st-rv":"st-no"; }
 function issuesHtml(iss){ return iss.length ? `<ul class="iss">${iss.map(i=>`<li class="l-${i.level}">${esc(i.msg)}</li>`).join("")}</ul>` : "<span class='msg'>Sesuai</span>"; }
@@ -1142,7 +1207,9 @@ function render(){
   // file list
   let fl = `<div class="files"><div class="scroll"><table><thead><tr><th>Tanggal</th><th>Program</th><th>Data Eligible</th><th>Multiposting</th><th>Eligible</th><th>Perlu review</th><th>Tidak eligible</th><th>Details diperbaiki</th></tr></thead><tbody>`;
   list.forEach(p=>{ const k=s=>p.elig.filter(x=>x.status===s).length;
-    fl += `<tr><td class="mono">${esc(p.date)}</td><td>${p.program}</td><td>${p.e?`<span class="ok">${p.e.rows.length} baris</span>`:'<span class="miss">tidak ada</span>'}</td><td>${p.m?(p.m.rows.length?`<span class="ok">${p.m.rows.length} baris</span>`:'<span class="msg">0 baris, tidak dibalas</span>'):'<span class="miss">tidak ada</span>'}</td><td class="mono">${k("Eligible")}</td><td class="mono">${k("Perlu review")}</td><td class="mono">${k("Tidak eligible")}</td><td class="mono">${p.mp.rows.filter(isLong).length}</td></tr>`; });
+    fl += `<tr><td class="mono">${esc(p.label||p.date)}${p.bulk?`<div class="msg">File rekap · ${p.dates.length} tanggal</div>`:""}</td><td>${p.program}</td><td>${p.e?`<span class="ok">${p.e.rows.length} baris</span>`:'<span class="miss">tidak ada</span>'}</td><td>${p.m?(p.m.rows.length?`<span class="ok">${p.m.rows.length} baris</span>`:'<span class="msg">0 baris, tidak dibalas</span>'):'<span class="miss">tidak ada</span>'}</td><td class="mono">${k("Eligible")}</td><td class="mono">${k("Perlu review")}</td><td class="mono">${k("Tidak eligible")}</td><td class="mono">${p.mp.rows.filter(isLong).length}</td></tr>`;
+    if (p.bulk) p.dates.forEach(d=>{ const e=p.elig.filter(x=>x.d===d), m=p.mp.rows.filter(x=>x.d===d), kk=s=>e.filter(x=>x.status===s).length;
+      fl += `<tr class="sub"><td class="mono" style="padding-left:26px">${esc(d)}</td><td class="msg">${p.program}</td><td class="mono">${e.length} baris</td><td class="mono">${m.length} baris</td><td class="mono">${kk("Eligible")}</td><td class="mono">${kk("Perlu review")}</td><td class="mono">${kk("Tidak eligible")}</td><td class="mono">${m.filter(isLong).length}</td></tr>`; }); });
   fl += `</tbody></table></div><div class="toolbar"><button class="ghost" id="clearFiles">Hapus semua file</button><span class="msg">Tambah file lagi kapan saja; file dengan nama sama akan diganti.</span></div></div>`;
   $("fileList").innerHTML = fl;
   $("clearFiles").onclick = ()=>{ state.files=[]; $("nameAll").textContent=""; $("dropAll").classList.remove("done"); run(); };
@@ -1182,14 +1249,14 @@ function render(){
     const rows = allE.filter(x=> state.filter==="all" || (state.filter==="issue" ? x.status!=="Eligible" : x.status===state.filter));
     total=rows.length;
     h += `<div class="scroll"><table><thead><tr><th>Tanggal</th><th>Program</th><th>Status</th><th>Nama</th><th>Kode promo</th><th>Catatan</th><th>Type Trx</th><th>Nominal</th><th>Rekening</th><th>Kuota</th></tr></thead><tbody>`;
-    rows.slice(0,LIMIT).forEach(x=>{ const r=x.row; shown++; h += `<tr class="${rowCls(x.status)}"><td class="mono">${esc(x.pair.date)}</td><td>${x.pair.program}</td><td>${pill(x.status)}</td><td class="nm">${esc(r.name)}</td><td class="mono">${esc(r.kodepromo)}</td><td class="notes">${issuesHtml(x.issues)}</td><td>${esc(r.type_trx)}</td><td class="mono">${esc(Number(r.amt_trx).toLocaleString("id-ID"))}</td><td class="mono">${esc(r.account_no)}</td><td class="mono">${esc(r.kuota)}</td></tr>`; });
+    rows.slice(0,LIMIT).forEach(x=>{ const r=x.row; shown++; h += `<tr class="${rowCls(x.status)}"><td class="mono">${esc(x.d||x.pair.date)}</td><td>${x.pair.program}</td><td>${pill(x.status)}</td><td class="nm">${esc(r.name)}</td><td class="mono">${esc(r.kodepromo)}</td><td class="notes">${issuesHtml(x.issues)}</td><td>${esc(r.type_trx)}</td><td class="mono">${esc(Number(r.amt_trx).toLocaleString("id-ID"))}</td><td class="mono">${esc(r.account_no)}</td><td class="mono">${esc(r.kuota)}</td></tr>`; });
     h += `</tbody></table></div>`;
   } else if (state.tab==="mp"){
     const rows = allM.filter(x=>{ const st=mpStatus(x); return state.filter==="all" || (state.filter==="issue" ? (st!=="Eligible"||isLong(x)) : state.filter==="long" ? isLong(x) : st===state.filter); });
     total=rows.length;
     h += `<div class="scroll"><table><thead><tr><th>Tanggal</th><th>Program</th><th>Status</th><th>Debit acc</th><th>Nominal</th><th>Details</th><th>Credit acc</th><th>Catatan</th></tr></thead><tbody>`;
     rows.slice(0,LIMIT).forEach(x=>{ const r=x.row, st=mpStatus(x), nd=x.pair.rules.newDebitAcc; shown++;
-      h += `<tr class="${rowCls(st)}"><td class="mono">${esc(x.pair.date)}</td><td>${x.pair.program}</td><td>${pill(st)}</td><td class="mono">${x.origDebit!==nd?`<span class="old">${esc(x.origDebit)}</span>`:""}${esc(x.fixed.debit_acc)}</td><td class="mono">${esc(r.debit_amount)}</td><td class="mono">${str(r.details)!==x.fixed.details?`<span class="old">${esc(r.details)}</span>`:""}${esc(x.fixed.details)} <span class="msg">(${x.fixed.details.length})</span></td><td class="mono">${esc(r.credit_acc)}</td><td class="notes">${issuesHtml(x.issues)}</td></tr>`; });
+      h += `<tr class="${rowCls(st)}"><td class="mono">${esc(x.d||x.pair.date)}</td><td>${x.pair.program}</td><td>${pill(st)}</td><td class="mono">${x.origDebit!==nd?`<span class="old">${esc(x.origDebit)}</span>`:""}${esc(x.fixed.debit_acc)}</td><td class="mono">${esc(r.debit_amount)}</td><td class="mono">${str(r.details)!==x.fixed.details?`<span class="old">${esc(r.details)}</span>`:""}${esc(x.fixed.details)} <span class="msg">(${x.fixed.details.length})</span></td><td class="mono">${esc(r.credit_acc)}</td><td class="notes">${issuesHtml(x.issues)}</td></tr>`; });
     h += `</tbody></table></div>`;
   } else if (state.tab==="event"){
     h += eventHtml();
@@ -1227,7 +1294,7 @@ function emailNote(){
   t += `- Debit acc seluruh baris diganti menjadi ${rules0.newDebitAcc} sesuai Berita Acara No. 06/0020-BA/BBG (semula ${rules0.oldDebitAcc})\n`;
   const long = allM.filter(isLong);
   t += long.length ? `- ${long.length} details lebih dari ${rules0.maxDetails} karakter telah dipendekkan (rincian di bawah)\n` : `- Seluruh details maksimal ${rules0.maxDetails} karakter\n`;
-  t += `\nRincian per hari:\n` + list.map(p=>{ const c=s=>p.elig.filter(x=>x.status===s).length; return `- ${p.date} ${p.program}: ${p.elig.length} nasabah (eligible ${c("Eligible")}, review ${c("Perlu review")}, tidak eligible ${c("Tidak eligible")})\n`; }).join("");
+  t += `\nRincian per hari:\n` + perDate().map(o=>`- ${o.tanggal} ${o.program}: ${o.total} nasabah (eligible ${o.eligible}, review ${o.perlu_review}, tidak eligible ${o.tidak_eligible})\n`).join("");
   return t + rincian();
 }
 
@@ -1236,10 +1303,10 @@ function rincian(){
   const k = s=>allE.filter(x=>x.status===s);
   let t = "";
   const long = allM.filter(isLong), max = list[0].rules.maxDetails;
-  if (long.length) t += `\nDetails yang dipendekkan (maks ${max} karakter):\n` + long.map(x=>`- ${x.pair.date}, credit acc ${x.row.credit_acc}: "${str(x.row.details).trim()}" menjadi "${x.fixed.details}"\n`).join("");
+  if (long.length) t += `\nDetails yang dipendekkan (maks ${max} karakter):\n` + long.map(x=>`- ${x.d||x.pair.date}, credit acc ${x.row.credit_acc}: "${str(x.row.details).trim()}" menjadi "${x.fixed.details}"\n`).join("");
   const rv=k("Perlu review"), no=k("Tidak eligible");
-  if (rv.length){ t += `\nPerlu konfirmasi:\n`; rv.forEach(x=>{ t += `- ${x.pair.date} ${x.row.name} (${x.row.account_no}), kode ${x.row.kodepromo}: ${x.issues.map(i=>i.msg).join("; ")}\n`; }); }
-  if (no.length){ t += `\nTidak eligible${state.excl?" (sudah dikeluarkan dari file gabungan)":""}:\n`; no.forEach(x=>{ t += `- ${x.pair.date} ${x.row.name} (${x.row.account_no}): ${x.issues.filter(i=>i.level==="error").map(i=>i.msg).join("; ")}\n`; }); }
+  if (rv.length){ t += `\nPerlu konfirmasi:\n`; rv.forEach(x=>{ t += `- ${x.d||x.pair.date} ${x.row.name} (${x.row.account_no}), kode ${x.row.kodepromo}: ${x.issues.map(i=>i.msg).join("; ")}\n`; }); }
+  if (no.length){ t += `\nTidak eligible${state.excl?" (sudah dikeluarkan dari file gabungan)":""}:\n`; no.forEach(x=>{ t += `- ${x.d||x.pair.date} ${x.row.name} (${x.row.account_no}): ${x.issues.filter(i=>i.level==="error").map(i=>i.msg).join("; ")}\n`; }); }
   return t;
 }
 
@@ -1283,12 +1350,12 @@ function downloadReport(){
   const {list, allE, allM, eT, mT} = state.res;
   const sum=[["tanggal","program","file_data_eligible","file_multiposting","total_nasabah","eligible","perlu_review","tidak_eligible","baris_multiposting","details_diperbaiki","total_cashback"]];
   list.forEach(p=>{ const c=s=>String(p.elig.filter(x=>x.status===s).length);
-    sum.push([p.date,p.program,p.e?p.e.name:"-",p.m?p.m.name:"-",String(p.elig.length),c("Eligible"),c("Perlu review"),c("Tidak eligible"),String(p.mp.rows.length),String(p.mp.rows.filter(isLong).length),String(p.mp.rows.reduce((a,x)=>a+(Number(x.row.debit_amount)||0),0))]); });
+    sum.push([p.label||p.date,p.program,p.e?p.e.name:"-",p.m?p.m.name:"-",String(p.elig.length),c("Eligible"),c("Perlu review"),c("Tidak eligible"),String(p.mp.rows.length),String(p.mp.rows.filter(isLong).length),String(p.mp.rows.reduce((a,x)=>a+(Number(x.row.debit_amount)||0),0))]); });
   const r0=list[0].rules;
   sum.push([],["Dasar aturan","Memo No. 06/479-1/BBG, 25 Maret 2026"],["Rekening debit","BA No. 06/0020-BA/BBG: "+r0.oldDebitAcc+" menjadi "+r0.newDebitAcc]);
   const sheets=[["Ringkasan",sum]];
-  if (eT){ const e=[["tanggal_file","program","status_validasi","catatan_validasi",...eT.headers]]; allE.forEach(x=>e.push([x.pair.date,x.pair.program,x.status,x.issues.map(i=>i.msg).join("; "),...eT.keys.map(k=>str(x.fixedRow[k]))])); sheets.push(["Data Eligible",e]); }
-  if (mT){ const m=[["tanggal_file","program","status_validasi","catatan_validasi","debit_acc_awal","details_awal",...mT.headers]]; allM.forEach(x=>m.push([x.pair.date,x.pair.program,mpStatus(x),x.issues.map(i=>i.msg).join("; "),x.origDebit,str(x.row.details),...mT.keys.map(k=>str(x.fixed[k]))])); sheets.push(["Multiposting",m]); }
+  if (eT){ const e=[["tanggal_data","program","status_validasi","catatan_validasi",...eT.headers]]; allE.forEach(x=>e.push([x.d||x.pair.date,x.pair.program,x.status,x.issues.map(i=>i.msg).join("; "),...eT.keys.map(k=>str(x.fixedRow[k]))])); sheets.push(["Data Eligible",e]); }
+  if (mT){ const m=[["tanggal_data","program","status_validasi","catatan_validasi","debit_acc_awal","details_awal",...mT.headers]]; allM.forEach(x=>m.push([x.d||x.pair.date,x.pair.program,mpStatus(x),x.issues.map(i=>i.msg).join("; "),x.origDebit,str(x.row.details),...mT.keys.map(k=>str(x.fixed[k]))])); sheets.push(["Multiposting",m]); }
   save(`Hasil_Validasi_${suffix()}.xlsx`, wbBytes(sheets));
 }
 
@@ -1324,10 +1391,10 @@ function quotaStats(){
     const ks = rows.map(x=>Number(x.row.kuota)).filter(n=>!isNaN(n) && n>0);
     const used = ks.length ? Math.max(...ks) : valid.length;
     const quota = Number(r.quota), cb = Number(r.cashback);
-    const dates = list.filter(p=>p.program===prog && p.date!=="tanpa-tanggal").map(p=>p.date).sort();
+    const dates = [...new Set(list.filter(p=>p.program===prog).flatMap(p=>p.dates))].sort();
     const first = dates[0], last = dates[dates.length-1];
     const perDay = {}; dates.forEach(d=>perDay[d]=0);
-    valid.forEach(x=>{ perDay[x.pair.date]=(perDay[x.pair.date]||0)+1; });
+    valid.forEach(x=>{ const d = x.d || x.pair.date; perDay[d]=(perDay[d]||0)+1; });
     const span = first ? Math.round((toD(last)-toD(first))/DAY)+1 : 0;
     const ptdDays = last ? Math.max(1, Math.round((toD(last)-toD(r.periodStart))/DAY)+1) : 0;
     const recent = span>=7 ? valid.length/span : null;
@@ -1426,8 +1493,7 @@ function aiPayload(){
       kuota:s.quota, kuota_terpakai_kumulatif:s.used, sisa_kuota:s.sisa, anggaran_terpakai:s.anggaranPakai, anggaran_total:s.anggaranTotal,
       laju_nasabah_per_hari:+s.rate.toFixed(2), basis_laju:s.basis, proyeksi_terpakai_akhir_program:Math.round(s.projEnd), perkiraan_tanggal_kuota_habis:s.habis,
       nasabah_di_file:s.nBatch, nasabah_valid_di_file:s.nValid, total_pembelian_rp:s.pembelian, total_gram:+s.gram.toFixed(4) })),
-    per_hari: list.map(p=>({ tanggal:p.date, program:p.program, total:p.elig.length,
-      eligible:p.elig.filter(x=>x.status==="Eligible").length, perlu_review:p.elig.filter(x=>x.status==="Perlu review").length, tidak_eligible:p.elig.filter(x=>x.status==="Tidak eligible").length })),
+    per_hari: perDate(),
     status_total: { eligible: allE.filter(x=>x.status==="Eligible").length, perlu_review: allE.filter(x=>x.status==="Perlu review").length, tidak_eligible: allE.filter(x=>x.status==="Tidak eligible").length },
     kategori_masalah: masalah,
     nasabah_berstatus_pegawai: peg,
@@ -1492,7 +1558,7 @@ function replyBody(p){
   const bad = p.elig.filter(x=>x.status==="Tidak eligible"), rev = p.elig.filter(x=>x.status==="Perlu review");
   const notFound = rows.filter(x=>x.eligStatus==="Tidak ditemukan");
   const long = rows.filter(isLong);
-  const judul = `PROGRAM CASHBACK EVENT UNTUK AKUISISI NEW NOA (${p.program}) Periode program ${periodeTxt(r)} - Periode Data ${p.date}`;
+  const judul = `PROGRAM CASHBACK EVENT UNTUK AKUISISI NEW NOA (${p.program}) Periode program ${periodeTxt(r)} - Periode Data ${p.label||p.date}`;
   const clean = !bad.length && !rev.length && !notFound.length;
   let t = `Assalamualaikum Wr. Wb.\n\n${$("e_sapaan").value.trim()} `;
   t += clean ? `Terkait ${judul} yang dikirimkan sudah sesuai, mohon dapat ditindaklanjuti lebih lanjut oleh tim DBO.\n\n`
@@ -1601,7 +1667,7 @@ function evCompute(){
   const events = evList(), tol = evTol();
   const per = {}, groups = {};
   state.res.allE.forEach(x=>{
-    const trx = dateOf(x.row.tanggal_transaksi) || x.pair.date;
+    const trx = dateOf(x.row.tanggal_transaksi) || x.d || x.pair.date;
     const a = evAttribute(trx, x.pair.program, x.row.kodepromo, events, tol); x.att = a;
     const valid = x.status !== "Tidak eligible";
     let b;
@@ -1695,6 +1761,7 @@ setStep(1);
 // ===== Platform: konfigurasi, navigasi, checklist =====
 // PIC dapat mengisi tautan di bawah ini (kosongkan jika tidak ingin ditampilkan).
 const KILAU_CFG = {
+  trackerApi: "",            // opsional: URL Web App …/exec (token tetap diisi tiap pengguna)
   trackerSheet: "https://docs.google.com/spreadsheets/d/10np64kgLcNCoGNno57Poqv8k5mswtUqF4mGk7V7eLbM/edit?usp=sharing",          // contoh: "https://docs.google.com/spreadsheets/d/…/edit"
   eventSheet: "https://docs.google.com/spreadsheets/d/1XKhRY-RV_ZRP4DJmgxiv2n5R_Tv8VP_UtLFsqRIRG4s/edit?gid=213275053#gid=213275053",            // contoh: tautan sheet Activities (EVENT ATL)
   pic: "Fikri, Laudy, Yuta · Bullion Marketing Strategy",
@@ -1703,7 +1770,7 @@ const KILAU_CFG = {
 function kilauRoute(){
   const h = (location.hash || "#proses").slice(1);
   const [view, anchor] = h.split("/");
-  const v = ["proses","panduan","unduhan","tentang"].includes(view) ? view : "proses";
+  const v = ["proses","panduan","tracker","unduhan","tentang"].includes(view) ? view : "proses";
   document.querySelectorAll("[data-view]").forEach(el => { el.hidden = el.dataset.view !== v; });
   document.querySelectorAll("[data-nav]").forEach(a => { if (a.dataset.nav === v) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
   if (anchor){ const t = document.getElementById(anchor); if (t) { t.scrollIntoView({ block:"start" }); window.scrollBy(0, -70); } }
@@ -1726,4 +1793,89 @@ function kilauPlatformInit(){
   window.addEventListener("hashchange", kilauRoute); kilauRoute();
 }
 kilauPlatformInit();
+// ===== Tracker view (status dari Google Sheets) =====
+const TKCFG = "kilau-tracker-view-v1";
+const tkCfg = () => { try{ return JSON.parse(localStorage.getItem(TKCFG)||"{}")||{}; }catch(_){ return {}; } };
+const tkSaveCfg = c => { try{ localStorage.setItem(TKCFG, JSON.stringify(Object.assign(tkCfg(), c))); }catch(_){} };
+const tkToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+let TK = { status:null, at:null };
+function tkPill(st){
+  const s = String(st||"").toLowerCase();
+  const cls = /terkirim/.test(s) ? "p-ok" : /draft/.test(s) ? "p-rv" : /gagal|dilewati/.test(s) ? "p-no" : /tidak ada email|0 transaksi/.test(s) ? "p-none" : "p-none";
+  return `<span class="pill ${cls}">${esc(st||"Belum")}</span>`;
+}
+function tkSession(){
+  // file yang sedang dimuat di halaman Proses Data: tanggal -> {program -> label file}
+  const m = {};
+  if (!state.res) return m;
+  // rentang file rekap: dari tanggal paling awal di semua file rekap bertanggal sama, sampai tanggal file
+  const startByFile = {};
+  state.res.list.forEach(p=>{ if (p.bulk && p.dates.length){ startByFile[p.date] = startByFile[p.date] && startByFile[p.date] < p.dates[0] ? startByFile[p.date] : p.dates[0]; } });
+  state.res.list.forEach(p=>{
+    const ds = new Set(p.dates && p.dates.length ? p.dates : [p.date]);
+    const st = startByFile[p.date];
+    if (st && st <= p.date) for (let d = new Date(st+"T00:00:00Z"); d <= new Date(p.date+"T00:00:00Z"); d = new Date(d.getTime()+864e5)) ds.add(d.toISOString().slice(0,10));
+    ds.forEach(d=>{ (m[d]=m[d]||{})[p.program] = { file:p.date, bulk:!!st, n:(p.elig||[]).filter(x=>(x.d||p.date)===d).length }; });
+  });
+  return m;
+}
+function tkRender(){
+  const out = $("tkOut"); if (!TK.status){ return; }
+  const from = $("tkFrom").value, to = $("tkTo").value, only = $("tkOnly").checked;
+  if (!from || !to || from > to){ out.innerHTML = '<p class="msg">Rentang tanggal tidak valid.</p>'; return; }
+  const ses = tkSession(), progs = ["EMAS30","EMAS50"];
+  const days = []; for (let d = new Date(from+"T00:00:00Z"); d <= new Date(to+"T00:00:00Z"); d = new Date(d.getTime()+864e5)) days.push(d.toISOString().slice(0,10));
+  const cnt = { EMAS30:{t:0,d:0,g:0,b:0,n:0}, EMAS50:{t:0,d:0,g:0,b:0,n:0} };
+  const cell = (prog, d) => {
+    let r = TK.status[`${prog}|${d}`], via = "";
+    const se = (ses[d]||{})[prog];
+    if (!r && se && se.bulk && se.file !== d){ const rb = TK.status[`${prog}|${se.file}`]; if (rb){ r = rb; via = `lewat rekap ${se.file}`; } }
+    const st = r ? r.status : "Belum", s = st.toLowerCase();
+    const c = cnt[prog];
+    if (/terkirim/.test(s)) c.t++; else if (/draft/.test(s)) c.d++; else if (/gagal|dilewati/.test(s)) c.g++; else if (/tidak ada email/.test(s)) c.n++; else c.b++;
+    const done = /terkirim|tidak ada email/.test(s);
+    return { done, html: `${tkPill(st)}${r && r.oleh ? ` <span class="msg">${esc(r.oleh)}</span>` : ""}${via ? `<div class="msg">${esc(via)}</div>` : ""}${se ? `<div class="msg">${se.n ? `${se.n} nasabah di file yang dimuat` : "0 nasabah di file rekap"}</div>` : ""}` };
+  };
+  const rows = days.map(d=>{ const c = progs.map(p=>cell(p,d)); return { d, c, done: c.every(x=>x.done) }; });
+  const show = rows.filter(r=>!only || !r.done).reverse();
+  const tile = (n,l,col) => `<div><b style="color:${col}">${n}</b><span>${l}</span></div>`;
+  let h = `<div class="trk-sum">${progs.map(p=>{ const c=cnt[p]; return tile(`${c.t} / ${days.length}`, `${p} terkirim`, "var(--blue)"); }).join("")}
+    ${tile(cnt.EMAS30.d+cnt.EMAS50.d, "Draft (belum dikirim)", "var(--gold)")}
+    ${tile(cnt.EMAS30.g+cnt.EMAS50.g, "Gagal / dilewati", "var(--red)")}
+    ${tile(cnt.EMAS30.b+cnt.EMAS50.b, "Belum tercatat", "var(--muted)")}</div>`;
+  h += `<div class="trk-tbl"><table><thead><tr><th>Tanggal data</th><th>EMAS30</th><th>EMAS50</th></tr></thead><tbody>`;
+  show.forEach(r=>{ const wd = new Date(r.d+"T00:00:00Z").getUTCDay(), wk = wd===0||wd===6;
+    h += `<tr class="${wk?"wk":""}"><td class="mono">${new Date(r.d+"T00:00:00Z").toLocaleDateString("id-ID",{weekday:"short",day:"2-digit",month:"short",year:"numeric",timeZone:"UTC"})}</td><td>${r.c[0].html}</td><td>${r.c[1].html}</td></tr>`; });
+  if (!show.length) h += `<tr><td colspan="3" class="msg">Semua tanggal di rentang ini sudah selesai.</td></tr>`;
+  h += `</tbody></table></div><p class="msg">"Belum tercatat" bisa berarti belum dibalas, atau DAS memang tidak mengirim email hari itu. Tandai hari tanpa email dengan status <b>Tidak ada email</b> di sheet Log. Diperbarui ${TK.at ? TK.at.toLocaleTimeString("id-ID") : "-"}.</p>`;
+  out.innerHTML = h;
+}
+async function tkLoad(){
+  const c = tkCfg(), msg = $("tkMsg");
+  if (!c.url || !c.token){ $("tkSet").open = true; msg.textContent = "Isi URL Web App dan token dulu."; return; }
+  msg.textContent = "Memuat status…"; $("tkLoad").disabled = true;
+  try{
+    const r = await fetch(`${c.url}${c.url.includes("?")?"&":"?"}token=${encodeURIComponent(c.token)}&t=${Date.now()}`, { redirect:"follow" });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error === "token" ? "Token salah." : "Tracker menolak permintaan.");
+    TK = { status: j.status || {}, at: new Date() };
+    msg.textContent = `${Object.keys(TK.status).length} status dimuat.`;
+    tkRender();
+  }catch(e){
+    msg.textContent = /Token|menolak/.test(e.message) ? e.message : "Tidak bisa menghubungi tracker. Cek URL Web App (akses Anyone) dan koneksi internet.";
+  }finally{ $("tkLoad").disabled = false; }
+}
+(function tkInit(){
+  const c = tkCfg();
+  $("tkUrl").value = c.url || (KILAU_CFG.trackerApi || ""); $("tkTok").value = c.token || "";
+  $("tkFrom").value = c.from || "2026-08-01"; $("tkTo").value = tkToday();
+  if (KILAU_CFG.trackerSheet){ $("tkSheet").href = KILAU_CFG.trackerSheet; $("tkSheet").hidden = false; }
+  if (!c.url || !c.token) $("tkSet").open = true;
+  $("tkSave").onclick = () => { tkSaveCfg({ url:$("tkUrl").value.trim(), token:$("tkTok").value.trim() }); $("tkSet").open = false; tkLoad(); };
+  $("tkLoad").onclick = tkLoad;
+  ["tkFrom","tkTo","tkOnly"].forEach(id=>$(id).addEventListener("change", ()=>{ if (id==="tkFrom") tkSaveCfg({ from:$("tkFrom").value }); tkRender(); }));
+  window.addEventListener("hashchange", ()=>{ if (location.hash.startsWith("#tracker") && c.url && c.token && !TK.status) tkLoad(); else if (location.hash.startsWith("#tracker")) tkRender(); });
+  if (location.hash.startsWith("#tracker") && c.url && c.token) tkLoad();
+})();
+
 </script></body></html>
