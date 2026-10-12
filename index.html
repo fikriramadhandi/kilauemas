@@ -1229,6 +1229,7 @@ function render(){
     <button id="dlM" class="ghost">Gabungan Multiposting</button>
     <button id="dlRep" class="ghost">Hasil validasi</button>
     <label class="chk"><input type="checkbox" id="excl" ${state.excl?"checked":""}> Keluarkan nasabah tidak eligible dari file gabungan</label>
+    <label class="chk"><input type="checkbox" id="skipSent" ${state.skipSent!==false?"checked":""}> Paket balasan: lewati yang sudah dibalas (cek tracker)</label>
     <span class="msg" id="dlMsg" role="status"></span>
   </div>
   <div class="tabs" role="tablist">
@@ -1274,6 +1275,8 @@ function render(){
     $("shown").textContent = total>LIMIT ? `Menampilkan ${LIMIT} dari ${total} baris. File unduhan tetap berisi semua baris.` : `${total} baris`; }
   document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{ state.tab=b.dataset.tab; render(); });
   $("excl").onchange = e=>{ state.excl=e.target.checked; render(); };
+  if ($("skipSent")) $("skipSent").onchange = e=>{ state.skipSent=e.target.checked; };
+  if ($("rpCheck")) $("rpCheck").onclick = async ()=>{ $("rpCheck").disabled = true; try{ await tkFetch(); }catch(e){ alert(e.message); } render(); };
   $("dlE").onclick = downloadE; $("dlM").onclick = downloadM; $("dlRep").onclick = downloadReport; $("dlPkg").onclick = downloadPackage;
   if ($("copyNote")) $("copyNote").onclick = copyNote;
   if ($("aiBtn")) $("aiBtn").onclick = runAI;
@@ -1590,8 +1593,24 @@ async function downloadPackage(){
   if (typeof JSZip === "undefined"){ msg.textContent = "Komponen ZIP gagal dimuat, muat ulang halaman."; return; }
   const all = state.res.list.filter(p=>p.m);
   if (!all.length){ msg.textContent = "Belum ada File Multiposting."; return; }
-  const pairs = all.filter(p=>p.m.rows.length>0);   // file 0 transaksi tidak dibalas
+  let pairs = all.filter(p=>p.m.rows.length>0);   // file 0 transaksi tidak dibalas
   if (!pairs.length){ msg.textContent = "Semua file berisi 0 transaksi, tidak ada yang perlu dibalas."; return; }
+  let skipped = [];
+  if (state.skipSent !== false){
+    const c = tkCfg();
+    if (!c.url || !c.token){
+      if (!confirm("Tracker belum dihubungkan (menu Tracker → Koneksi tracker), jadi KILAU tidak bisa mengecek mana yang sudah dibalas.\n\nTetap unduh paket untuk SEMUA hari?")) return;
+    } else {
+      msg.textContent = "Mengecek tracker…";
+      try{ await tkFetch(); }
+      catch(e){ if (!confirm(`${e.message}\n\nTetap unduh paket untuk SEMUA hari tanpa cek tracker?`)) { msg.textContent = ""; return; } }
+      if (TK.status){
+        skipped = pairs.filter(p=>tkDoneSt((TK.status[p.key]||{}).status));
+        pairs = pairs.filter(p=>!skipped.includes(p));
+        if (!pairs.length){ const t = `Semua ${skipped.length} hari sudah tercatat Terkirim/Draft di tracker. Tidak ada yang perlu dibalas.`; render(); $("dlMsg").textContent = t; return; }
+      }
+    }
+  }
   const zip = new JSZip();
   pairs.forEach(p=>{
     const fx = fixName(p.m.name);
@@ -1600,8 +1619,11 @@ async function downloadPackage(){
   });
   const bytes = await zip.generateAsync({ type:"uint8array" });
   await save(`KILAU_Paket_Balasan_${suffix()}.zip`, bytes);
-  const nol = all.length - pairs.length;
-  if (nol) msg.textContent += ` ${nol} hari berisi 0 transaksi tidak dimasukkan (tidak perlu dibalas).`;
+  const nol = all.filter(p=>!p.m.rows.length).length;
+  msg.textContent += ` Berisi ${pairs.length} hari.`;
+  if (skipped.length) msg.textContent += ` ${skipped.length} hari dilewati karena sudah tercatat di tracker (${skipped.map(p=>`${p.date} ${p.program}: ${TK.status[p.key].status}`).join(", ")}).`;
+  if (nol) msg.textContent += ` ${nol} hari berisi 0 transaksi tidak dimasukkan.`;
+  const keep = msg.textContent; render(); $("dlMsg").textContent = keep;
 }
 
 init();
@@ -1620,7 +1642,9 @@ function replyHtml(){
   const pairs = state.res.list.filter(p=>p.m), sent = sentMap();
   const done = pairs.filter(p=>sent[p.key]).length;
   const nol = pairs.filter(p=>!p.m.rows.length).length;
-  let h = `<div class="pad"><p class="msg">Untuk Outlook Web: buka email DAS sesuai kata kunci, klik <b>Reply all</b>, tempel isi email, lalu lampirkan file FIX dan PDF Berita Acara. Terkirim: <b>${done} dari ${pairs.length - nol}</b>${nol?` (${nol} hari berisi 0 transaksi tidak perlu dibalas)`:""}.</p></div>`;
+  const trkN = TK.status ? pairs.filter(p=>p.m.rows.length && tkDoneSt((TK.status[p.key]||{}).status)).length : null;
+  let h = `<div class="pad" style="padding-bottom:0"><div class="toolbar" style="padding:0;border:0"><button class="ghost" id="rpCheck">${TK.status ? "Perbarui status tracker" : "Cek status di tracker"}</button><span class="msg">${TK.status ? `Tracker: ${trkN} dari ${pairs.length - nol} hari sudah dibalas (Terkirim/Draft). Diperbarui ${TK.at.toLocaleTimeString("id-ID")}.` : "Status tracker belum dimuat."}</span></div></div>`;
+  h += `<div class="pad"><p class="msg">Untuk Outlook Web: buka email DAS sesuai kata kunci, klik <b>Reply all</b>, tempel isi email, lalu lampirkan file FIX dan PDF Berita Acara. Terkirim: <b>${done} dari ${pairs.length - nol}</b>${nol?` (${nol} hari berisi 0 transaksi tidak perlu dibalas)`:""}.</p></div>`;
   h += `<div class="scroll"><table><thead><tr><th>Terkirim</th><th>Tanggal</th><th>Program</th><th>Kondisi</th><th>Kata kunci cari</th><th>Aksi</th></tr></thead><tbody>`;
   pairs.forEach(p=>{
     if (!p.m.rows.length){
@@ -1628,9 +1652,10 @@ function replyHtml(){
       return;
     }
     const kw = `Periode Data ${p.date}`, clean = replyBody(p).includes("bersih=1");
-    h += `<tr class="${sent[p.key]?"st-ok":clean?"":"st-rv"}">
-      <td><button class="ghost" data-rp="sent" data-k="${esc(p.key)}" aria-pressed="${!!sent[p.key]}">${sent[p.key]?"✓ Sudah":"Tandai"}</button></td>
-      <td class="mono">${esc(p.date)}</td><td>${p.program}</td>
+    const tDone = TK.status && tkDoneSt((TK.status[p.key]||{}).status);
+    h += `<tr class="${sent[p.key]||tDone?"st-ok":clean?"":"st-rv"}">
+      <td>${TK.status && TK.status[p.key] ? `${tkPill(TK.status[p.key].status)}<div class="msg">${esc(TK.status[p.key].oleh||"")}</div>` : `<button class="ghost" data-rp="sent" data-k="${esc(p.key)}" aria-pressed="${!!sent[p.key]}">${sent[p.key]?"✓ Sudah":"Tandai"}</button>`}</td>
+      <td class="mono">${esc(p.label||p.date)}</td><td>${p.program}</td>
       <td>${clean?'<span class="pill p-ok">Sesuai</span>':'<span class="pill p-rv">Ada catatan</span>'}</td>
       <td class="mono">${esc(kw)} ${p.program}</td>
       <td style="white-space:nowrap"><button class="ghost" data-rp="kw" data-k="${esc(p.key)}">Salin kata kunci</button> <button data-rp="body" data-k="${esc(p.key)}">Salin isi email</button> <button class="ghost" data-rp="fix" data-k="${esc(p.key)}">Unduh file FIX</button></td></tr>`;
@@ -1849,6 +1874,19 @@ function tkRender(){
   if (!show.length) h += `<tr><td colspan="3" class="msg">Semua tanggal di rentang ini sudah selesai.</td></tr>`;
   h += `</tbody></table></div><p class="msg">"Belum tercatat" bisa berarti belum dibalas, atau DAS memang tidak mengirim email hari itu. Tandai hari tanpa email dengan status <b>Tidak ada email</b> di sheet Log. Diperbarui ${TK.at ? TK.at.toLocaleTimeString("id-ID") : "-"}.</p>`;
   out.innerHTML = h;
+}
+const tkDoneSt = st => /terkirim|draft|tidak ada email/i.test(String(st||""));
+async function tkFetch(){
+  const c = tkCfg();
+  if (!c.url || !c.token) throw new Error("Tracker belum dihubungkan. Buka menu Tracker → Koneksi tracker.");
+  let j;
+  try{
+    const r = await fetch(`${c.url}${c.url.includes("?")?"&":"?"}token=${encodeURIComponent(c.token)}&t=${Date.now()}`, { redirect:"follow" });
+    j = await r.json();
+  }catch(_){ throw new Error("Tidak bisa menghubungi tracker. Cek URL Web App (akses Anyone) dan koneksi internet."); }
+  if (!j.ok) throw new Error(j.error === "token" ? "Token tracker salah." : "Tracker menolak permintaan.");
+  TK = { status: j.status || {}, at: new Date() };
+  return TK.status;
 }
 async function tkLoad(){
   const c = tkCfg(), msg = $("tkMsg");
