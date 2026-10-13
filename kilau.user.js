@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KILAU – Balas Otomatis (Outlook Web)
 // @namespace    kilau.bbg.bsi
-// @version      1.4.0
+// @version      1.6.0
 // @description  Membalas (Reply all) email "[DAS] - FILE MULTIPOSTING" per hari dengan file FIX + Berita Acara + isi email dari paket KILAU.
 // @match        https://outlook.office.com/*
 // @match        https://outlook.office365.com/*
@@ -163,7 +163,9 @@
   async function pushLog(item, status, jumlah, catatan) {
     const c = cfg(); if (!c.url) return;
     try {
-      const r = await gm("POST", c.url, JSON.stringify({ token: c.token, rows: [{ tanggal: item.date, program: item.prog, status, jumlah: jumlah ?? "", oleh: c.nama || "", catatan: catatan || "" }] }));
+      const row = { tanggal: item.date, program: item.prog, status, jumlah: jumlah ?? "", oleh: c.nama || "", catatan: catatan || "" };
+      if (/^(terkirim|draft)$/i.test(status) && item.baris && item.baris.length) row.baris = item.baris;   // register baris yang ikut dikirim
+      const r = await gm("POST", c.url, JSON.stringify({ token: c.token, rows: [row] }));
       if (!r.ok) log(`  (tracker: ${r.error})`, "warn");
     } catch (e) { log(`  (tracker gagal dicatat: ${e.message})`, "warn"); }
   }
@@ -192,6 +194,11 @@
         if (lines[0].startsWith("#KILAU")) { map[k].meta = lines[0]; map[k].body = lines.slice(1).join("\n").trim(); }
         else map[k].body = t.trim();
         const m = (map[k].meta || "").match(/baris_asli=(\d+)/); map[k].nAsli = m ? +m[1] : null;
+        const pr = (map[k].meta || "").match(/periode=(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})/);
+        map[k].start = pr ? pr[1] : map[k].date; map[k].end = pr ? pr[2] : map[k].date;
+        map[k].bulk = map[k].start !== map[k].end;
+        const sd = (map[k].meta || "").match(/sidik=([^;]*)/);
+        map[k].baris = sd && sd[1] ? sd[1].split(",").map(x=>{ const [t,a,d] = x.split(":"); return { t, a, d }; }).filter(x=>x.t) : [];
       }
     }
     state.items = Object.values(map).sort((a, b) => a.date === b.date ? a.prog.localeCompare(b.prog) : a.date.localeCompare(b.date));
@@ -219,24 +226,51 @@
   // ------------------------------------------------------------------
   // Langkah-langkah di Outlook Web
   // ------------------------------------------------------------------
+  const BULAN = { jan:1, januari:1, january:1, feb:2, februari:2, february:2, mar:3, maret:3, march:3, apr:4, april:4, mei:5, may:5, jun:6, juni:6, june:6,
+    jul:7, juli:7, july:7, agu:8, agt:8, agustus:8, aug:8, august:8, sep:9, sept:9, september:9, okt:10, oct:10, oktober:10, october:10, nov:11, november:11, des:12, dec:12, desember:12, december:12 };
+  const NAMA_BULAN = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+  const iso = (y, m, d) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  // Membaca "Periode Data ..." dalam berbagai format: 2026-09-30 · 2026-09-01 s.d. 2026-09-30 · 1 - 30 September 2026 · 1 Sep - 30 Sep 2026 · 30 September 2026
+  function parsePeriode(text) {
+    const i = text.search(/periode\s+data/i); if (i < 0) return null;
+    const t = text.slice(i, i + 80).replace(/^periode\s+data\s*:?\s*/i, "");
+    let m;
+    if ((m = t.match(/^(\d{4}-\d{2}-\d{2})(?:\s*(?:s\.?\s*d\.?|sd|-|–|sampai|hingga)\s*(\d{4}-\d{2}-\d{2}))?/i))) return { start: m[1], end: m[2] || m[1] };
+    if ((m = t.match(/^(\d{1,2})\s+([a-z]+)\s*(?:s\.?\s*d\.?|-|–|sampai|hingga)\s*(\d{1,2})\s+([a-z]+)\s+(\d{4})/i)) && BULAN[m[2].toLowerCase()] && BULAN[m[4].toLowerCase()])
+      return { start: iso(m[5], BULAN[m[2].toLowerCase()], m[1]), end: iso(m[5], BULAN[m[4].toLowerCase()], m[3]) };
+    if ((m = t.match(/^(\d{1,2})\s*(?:s\.?\s*d\.?|-|–|sampai|hingga)\s*(\d{1,2})\s+([a-z]+)\s+(\d{4})/i)) && BULAN[m[3].toLowerCase()])
+      return { start: iso(m[4], BULAN[m[3].toLowerCase()], m[1]), end: iso(m[4], BULAN[m[3].toLowerCase()], m[2]) };
+    if ((m = t.match(/^(\d{1,2})\s+([a-z]+)\s+(\d{4})/i)) && BULAN[m[2].toLowerCase()]) { const d = iso(m[3], BULAN[m[2].toLowerCase()], m[1]); return { start: d, end: d }; }
+    return null;
+  }
+  // Harian: periode email = tanggal file. Rekap: periode email berupa rentang yang memuat tanggal file.
+  function periodeCocok(pr, item) {
+    if (!pr) return false;
+    if (!item.bulk) return pr.start === item.date && pr.end === item.date;
+    return pr.start !== pr.end && pr.start <= item.date && item.date <= pr.end;
+  }
   async function searchFor(item) {
     const box = q(SEL.search);
     if (!box) throw new Error("Kotak Search tidak ditemukan");
     box.focus(); box.click();
-    setInputValue(box, `"Periode Data ${item.date}" ${item.prog} "FILE MULTIPOSTING"`);
+    const [y, mo] = item.date.split("-");
+    const query = item.bulk
+      ? `"FILE MULTIPOSTING" ${item.prog} ${NAMA_BULAN[+mo]} ${y}`
+      : `"Periode Data ${item.date}" ${item.prog} "FILE MULTIPOSTING"`;
+    setInputValue(box, query);
     await sleep(300); key(box, "Enter");
     await sleep(1500);
   }
   function itemText(el) { return ((el.getAttribute("aria-label") || "") + " " + el.textContent).replace(/\s+/g, " "); }
   function isOriginal(txt, item) {
-    return txt.includes(item.date) && new RegExp(item.prog, "i").test(txt) && /\[DAS\]/i.test(txt)
-      && !/\b(RE|Re|FW|Fw|FWD)\s*:\s*\[DAS\]/.test(txt) && !/\[UJI COBA\]/i.test(txt);
+    return periodeCocok(parsePeriode(txt), item) && new RegExp(`\\b${item.prog}\\b`, "i").test(txt) && /\[DAS\]/i.test(txt)
+      && /FILE\s+MULTIPOSTING/i.test(txt) && !/\b(RE|Re|FW|Fw|FWD)\s*:\s*\[DAS\]/.test(txt) && !/\[UJI COBA\]/i.test(txt);
   }
   async function openOriginal(item) {
     const el = await waitFor(() => qAll(SEL.listItem).find(e => isOriginal(itemText(e), item)), T.long);
-    if (!el) throw new Error("Email DAS tidak ditemukan di hasil pencarian");
+    if (!el) throw new Error(item.bulk ? `Email rekap DAS (${NAMA_BULAN[+item.date.slice(5, 7)]} ${item.date.slice(0, 4)}) tidak ditemukan di hasil pencarian` : "Email DAS tidak ditemukan di hasil pencarian");
     el.scrollIntoView({ block: "center" }); el.click();
-    const pane = await waitFor(() => { const p = q(SEL.readingPane); return p && p.innerText.includes(item.date) ? p : null; }, T.long);
+    const pane = await waitFor(() => { const p = q(SEL.readingPane); return p && periodeCocok(parsePeriode(p.innerText), item) ? p : null; }, T.long);
     if (!pane) throw new Error("Email tidak terbuka di Reading Pane");
     await sleep(800);
     return pane;
@@ -333,7 +367,7 @@
   }
 
   async function processItem(item, mode, slow) {
-    log(`— ${item.date} ${item.prog}: mencari email…`);
+    log(`— ${item.date} ${item.prog}${item.bulk ? ` (rekap ${item.start} s.d. ${item.end})` : ""}: mencari email…`);
     await searchFor(item);
     const pane = await openOriginal(item);
     const n = checkCount(pane, item);

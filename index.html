@@ -452,6 +452,10 @@ tr.st-ok td:first-child,tr.st-rv td:first-child,tr.st-no td:first-child{box-shad
 .trk-tbl td,.trk-tbl th{white-space:nowrap}
 .p-none{background:var(--seg,#EEE);color:var(--muted)}
 .trk-tbl tr.wk td:first-child{color:var(--muted)}
+
+.regbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;background:var(--panel);border-radius:16px;padding:12px 18px;margin:28px 0 -14px;box-shadow:var(--shadow)}
+.regbar b{font-weight:600}
+.regbar .msg{margin-left:auto}
 </style>
 </head>
 <body>
@@ -1139,8 +1143,27 @@ function run(){
     p.rules = rules;
     p.elig = p.e ? validateEligible(p.e.rows, rules, hist, batch, label) : [];
     p.elig.forEach(x=>{ x.pair=p; x.fixedRow = Object.assign({}, x.row, { kodepromo: str(x.row.kodepromo).trim().toUpperCase() }); allE.push(x); });
+    // Register baris (tracker): transaksi/nasabah yang sudah pernah dibalas di file lain
+    p.elig.forEach(x=>{
+      x.h = rowSidik(x.row);
+      if (!REG.loaded) return;
+      const hits = REG.trx[x.h.t] || [];
+      const other = hits.find(e=>!(e.file===p.date && e.prog===p.program));
+      const self = hits.find(e=>e.file===p.date && e.prog===p.program);
+      if (self) x.sentHere = self;
+      if (other && !self){
+        x.sentElsewhere = other;
+        x.issues.push({ level:"error", msg:`Sudah pernah dikirim di file ${other.file} ${other.prog} (${other.status}${other.oleh?" · "+other.oleh:""})` });
+      } else if (!self){
+        const acc = (REG.acc[x.h.a] || []).find(e=>e.t!==x.h.t && !(e.file===p.date && e.prog===p.program));
+        if (acc){ x.dupAcc = acc; x.issues.push({ level:"error", msg:`Nasabah sudah dikirim cashback-nya dari transaksi lain di file ${acc.file} ${acc.prog}` }); }
+      }
+      x.status = x.issues.some(i=>i.level==="error") ? "Tidak eligible" : x.issues.length ? "Perlu review" : "Eligible";
+    });
     p.mp = p.m ? processMultiposting(p.m.rows, p.elig, rules) : { rows:[], missing:[] };
     p.mp.rows.forEach(x=>{ x.pair=p; allM.push(x); });
+    const eByAcc = {}; p.elig.forEach(x=>{ eByAcc[str(x.row.account_no).trim()] = x; });
+    p.mp.rows.forEach(x=>{ const e = eByAcc[str(x.row.credit_acc).trim()]; if (e){ x.eh = e.h; if (e.sentElsewhere) x.sentElsewhere = e.sentElsewhere; if (e.sentHere) x.sentHere = e.sentHere; if (e.dupAcc) x.dupAcc = e.dupAcc; } });
     // Tanggal per baris: file rekap (bulk) berisi banyak tanggal dalam satu file
     const asOf = new Set(p.elig.map(x=>dateOf(x.row.as_of_dt)).filter(Boolean));
     const trxD = new Set(p.elig.map(x=>dateOf(x.row.tanggal_transaksi)).filter(Boolean));
@@ -1152,6 +1175,11 @@ function run(){
     if (!p.dates.length && p.date!=="tanpa-tanggal") p.dates = [p.date];
     p.bulk = p.dates.length > 1;
     p.label = p.bulk ? `${p.dates[0]} s.d. ${p.dates[p.dates.length-1]}` : p.date;
+    // Periode rekap mengikuti format email DAS: 1 s.d. tanggal file pada bulan yang sama
+    const BLN_ID = ["","Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    p.pStart = p.bulk && p.date !== "tanpa-tanggal" ? p.date.slice(0,8) + "01" : p.date;
+    p.pEnd = p.date;
+    p.periodeTxt = p.bulk && p.date !== "tanpa-tanggal" ? `1 - ${+p.date.slice(8,10)} ${BLN_ID[+p.date.slice(5,7)]} ${p.date.slice(0,4)}` : p.date;
   });
   // header template
   const eFiles = list.filter(p=>p.e).map(p=>p.e), mFiles = list.filter(p=>p.m).map(p=>p.m);
@@ -1185,6 +1213,60 @@ function run(){
   render();
 }
 
+// ===== Register baris (sidik digital) =====
+const REG = { loaded:false, trx:{}, acc:{}, n:0, at:null };
+function sidikHash(str){ // cyrb53 (sinkron), dengan garam tetap
+  let h1 = 0xdeadbeef ^ 479, h2 = 0x41c6ce57 ^ 479;
+  for (let i = 0, ch; i < str.length; i++){ ch = str.charCodeAt(i); h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
+function rowSidik(r){
+  const acc = str(r.account_no).trim();
+  const trxId = str(r.recid).trim() || `${acc}|${str(r.tanggal_transaksi).trim()}|${str(r.amt_trx).trim()}`;
+  return { t: "t" + sidikHash("KILAU-T|" + trxId), a: "a" + sidikHash("KILAU-A|" + acc) };
+}
+function regIndex(rows){
+  const rank = st => /terkirim/i.test(st) ? 2 : /draft/i.test(st) ? 1 : 0;
+  const trx = {}, acc = {};
+  rows.forEach(([t, a, file, prog, status, oleh, d])=>{
+    if (!t || rank(status) === 0) return;
+    const e = { t, a, file, prog, status, oleh, d };
+    const L = trx[t] = trx[t] || []; const ex = L.find(x=>x.file===file && x.prog===prog);
+    if (!ex) L.push(e); else if (rank(status) > rank(ex.status)) Object.assign(ex, e);
+    if (a){ const A = acc[a] = acc[a] || []; if (!A.find(x=>x.t===t && x.file===file)) A.push(e); }
+  });
+  return { trx, acc };
+}
+async function regFetch(){
+  const c = tkCfg(); if (!c.url || !c.token) return false;
+  const r = await fetch(`${c.url}${c.url.includes("?")?"&":"?"}token=${encodeURIComponent(c.token)}&baris=1&t=${Date.now()}`, { redirect:"follow" });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error === "token" ? "Token tracker salah." : "Tracker menolak permintaan.");
+  if (!Array.isArray(j.baris)) throw new Error("Tracker belum mendukung register baris. Perbarui Apps Script tracker lalu deploy versi baru.");
+  const ix = regIndex(j.baris);
+  Object.assign(REG, { loaded:true, trx:ix.trx, acc:ix.acc, n:j.baris.length, at:new Date() });
+  return true;
+}
+// Kecocokan file: file yang di tracker sudah Terkirim/Draft tapi barisnya belum ada di register → daftarkan
+async function regSync(){
+  await regFetch();
+  if (!state.res || !TK.status) return 0;
+  const groups = [];
+  state.res.list.forEach(p=>{
+    const st = (TK.status[p.key]||{}).status || "";
+    if (!/terkirim|draft/i.test(st) || !p.e) return;
+    const items = p.elig.map(x=>({ x, h:rowSidik(x.row) })).filter(({h})=>!(REG.trx[h.t]||[]).some(e=>e.file===p.date && e.prog===p.program))
+      .map(({x,h})=>({ t:h.t, a:h.a, d:x.d||p.date }));
+    if (items.length) groups.push({ tanggal:p.date, program:p.program, status:st, oleh:(TK.status[p.key]||{}).oleh||"", sumber:"kecocokan file", items });
+  });
+  if (!groups.length) return 0;
+  const c = tkCfg();
+  await fetch(c.url, { method:"POST", headers:{ "Content-Type":"text/plain;charset=utf-8" }, body: JSON.stringify({ token:c.token, baris:groups }), redirect:"follow" });
+  await regFetch();
+  return groups.reduce((a,g)=>a+g.items.length,0);
+}
 function perDate(){
   const m = {};
   state.res.allE.forEach(x=>{ const t = x.d || x.pair.date, k = t + "|" + x.pair.program;
@@ -1197,25 +1279,35 @@ function rowCls(st){ return st==="Eligible"?"st-ok":st==="Perlu review"?"st-rv":
 function issuesHtml(iss){ return iss.length ? `<ul class="iss">${iss.map(i=>`<li class="l-${i.level}">${esc(i.msg)}</li>`).join("")}</ul>` : "<span class='msg'>Sesuai</span>"; }
 function mpStatus(x){ return x.issues.some(i=>i.level==="error")?"Tidak eligible":x.issues.some(i=>i.level==="review")?"Perlu review":"Eligible"; }
 const isLong = x => str(x.row.details).trim().length > Number(x.pair.rules.maxDetails);
-const keepM = x => !(state.excl && (x.eligStatus==="Tidak eligible" || x.eligStatus==="Tidak ditemukan"));
-const keepE = x => !(state.excl && x.status==="Tidak eligible");
+const keepM = x => !x.sentElsewhere && !x.dupAcc && !(state.excl && (x.eligStatus==="Tidak eligible" || x.eligStatus==="Tidak ditemukan"));
+const keepE = x => !x.sentElsewhere && !x.dupAcc && !(state.excl && x.status==="Tidak eligible");
 
 function render(){
   const {list, allE, allM, warn} = state.res;
   const c = s=>allE.filter(x=>x.status===s).length;
   const longN = allM.filter(isLong).length;
   // file list
-  let fl = `<div class="files"><div class="scroll"><table><thead><tr><th>Tanggal</th><th>Program</th><th>Data Eligible</th><th>Multiposting</th><th>Eligible</th><th>Perlu review</th><th>Tidak eligible</th><th>Details diperbaiki</th></tr></thead><tbody>`;
+  let fl = `<div class="files"><div class="scroll"><table><thead><tr><th>Tanggal</th><th>Program</th><th>Data Eligible</th><th>Multiposting</th><th>Eligible</th><th>Perlu review</th><th>Tidak eligible</th><th>Details diperbaiki</th>${REG.loaded?"<th>Riwayat kirim</th>":""}</tr></thead><tbody>`;
+  const regCell = (e)=>{ if (!REG.loaded) return ""; const sh=e.filter(x=>x.sentHere).length, se=e.filter(x=>x.sentElsewhere).length, nw=e.length-sh-se;
+    return `<td>${nw?`<span class="pill p-rv">${nw} baru</span> `:""}${sh?`<span class="pill p-ok">${sh} terkirim</span> `:""}${se?`<span class="pill p-no">${se} dobel</span>`:""}</td>`; };
   list.forEach(p=>{ const k=s=>p.elig.filter(x=>x.status===s).length;
-    fl += `<tr><td class="mono">${esc(p.label||p.date)}${p.bulk?`<div class="msg">File rekap · ${p.dates.length} tanggal</div>`:""}</td><td>${p.program}</td><td>${p.e?`<span class="ok">${p.e.rows.length} baris</span>`:'<span class="miss">tidak ada</span>'}</td><td>${p.m?(p.m.rows.length?`<span class="ok">${p.m.rows.length} baris</span>`:'<span class="msg">0 baris, tidak dibalas</span>'):'<span class="miss">tidak ada</span>'}</td><td class="mono">${k("Eligible")}</td><td class="mono">${k("Perlu review")}</td><td class="mono">${k("Tidak eligible")}</td><td class="mono">${p.mp.rows.filter(isLong).length}</td></tr>`;
+    fl += `<tr><td class="mono">${esc(p.label||p.date)}${p.bulk?`<div class="msg">File rekap · ${p.dates.length} tanggal</div>`:""}</td><td>${p.program}</td><td>${p.e?`<span class="ok">${p.e.rows.length} baris</span>`:'<span class="miss">tidak ada</span>'}</td><td>${p.m?(p.m.rows.length?`<span class="ok">${p.m.rows.length} baris</span>`:'<span class="msg">0 baris, tidak dibalas</span>'):'<span class="miss">tidak ada</span>'}</td><td class="mono">${k("Eligible")}</td><td class="mono">${k("Perlu review")}</td><td class="mono">${k("Tidak eligible")}</td><td class="mono">${p.mp.rows.filter(isLong).length}</td>${regCell(p.elig)}</tr>`;
     if (p.bulk) p.dates.forEach(d=>{ const e=p.elig.filter(x=>x.d===d), m=p.mp.rows.filter(x=>x.d===d), kk=s=>e.filter(x=>x.status===s).length;
-      fl += `<tr class="sub"><td class="mono" style="padding-left:26px">${esc(d)}</td><td class="msg">${p.program}</td><td class="mono">${e.length} baris</td><td class="mono">${m.length} baris</td><td class="mono">${kk("Eligible")}</td><td class="mono">${kk("Perlu review")}</td><td class="mono">${kk("Tidak eligible")}</td><td class="mono">${m.filter(isLong).length}</td></tr>`; }); });
+      fl += `<tr class="sub"><td class="mono" style="padding-left:26px">${esc(d)}</td><td class="msg">${p.program}</td><td class="mono">${e.length} baris</td><td class="mono">${m.length} baris</td><td class="mono">${kk("Eligible")}</td><td class="mono">${kk("Perlu review")}</td><td class="mono">${kk("Tidak eligible")}</td><td class="mono">${m.filter(isLong).length}</td>${regCell(e)}</tr>`; }); });
   fl += `</tbody></table></div><div class="toolbar"><button class="ghost" id="clearFiles">Hapus semua file</button><span class="msg">Tambah file lagi kapan saja; file dengan nama sama akan diganti.</span></div></div>`;
   $("fileList").innerHTML = fl;
   $("clearFiles").onclick = ()=>{ state.files=[]; $("nameAll").textContent=""; $("dropAll").classList.remove("done"); run(); };
 
   const posted = allM.filter(keepM);
-  let h = `<div class="tally">
+  const c0 = tkCfg();
+  let h = "";
+  if (REG.loaded){
+    const sh = allE.filter(x=>x.sentHere).length, se = allE.filter(x=>x.sentElsewhere).length, ac = allE.filter(x=>x.dupAcc && !x.sentElsewhere).length;
+    h += `<div class="regbar"><b>Riwayat kirim (tracker)</b><span><span class="pill p-rv">${allE.length-sh-se} baris baru</span> <span class="pill p-ok">${sh} sudah terkirim di file ini</span> <span class="pill p-no">${se} sudah dikirim di file lain</span>${ac?` <span class="pill p-no">${ac} nasabah dobel</span>`:""}</span><span class="msg">${REG.n} baris di register · diperbarui ${REG.at.toLocaleTimeString("id-ID")}</span><button class="ghost" id="regCheck">Perbarui</button></div>`;
+  } else if (c0.url && c0.token){
+    h += `<div class="regbar"><b>Riwayat kirim</b><span class="msg">Cocokkan setiap baris dengan yang sudah pernah dikirim (sheet Baris di tracker).</span><button id="regCheck">Cek riwayat kirim</button></div>`;
+  }
+  h += `<div class="tally">
     <div class="t-ok"><b>${c("Eligible").toLocaleString("id-ID")}</b><span>Eligible</span></div>
     <div class="t-rv"><b>${c("Perlu review").toLocaleString("id-ID")}</b><span>Perlu review</span></div>
     <div class="t-no"><b>${c("Tidak eligible").toLocaleString("id-ID")}</b><span>Tidak eligible</span></div>
@@ -1242,12 +1334,12 @@ function render(){
   </div><div class="panel">`;
   if (state.tab==="elig" || state.tab==="mp"){
     h += `<div class="toolbar"><label class="chk">Tampilkan <select id="flt">
-      <option value="all">Semua</option><option value="issue">Hanya yang bermasalah</option><option value="Perlu review">Perlu review</option><option value="Tidak eligible">Tidak eligible</option>${state.tab==="mp"?'<option value="long">Details diperbaiki</option>':""}
+      <option value="all">Semua</option><option value="issue">Hanya yang bermasalah</option><option value="Perlu review">Perlu review</option><option value="Tidak eligible">Tidak eligible</option>${REG.loaded?'<option value="sent">Sudah pernah dikirim</option><option value="new">Baris baru</option>':""}${state.tab==="mp"?'<option value="long">Details diperbaiki</option>':""}
     </select></label><span class="msg" id="shown"></span></div>`;
   }
   let shown=0, total=0;
   if (state.tab==="elig"){
-    const rows = allE.filter(x=> state.filter==="all" || (state.filter==="issue" ? x.status!=="Eligible" : x.status===state.filter));
+    const rows = allE.filter(x=> state.filter==="all" || (state.filter==="sent" ? (x.sentHere||x.sentElsewhere) : state.filter==="new" ? !(x.sentHere||x.sentElsewhere) : state.filter==="issue" ? x.status!=="Eligible" : x.status===state.filter));
     total=rows.length;
     h += `<div class="scroll"><table><thead><tr><th>Tanggal</th><th>Program</th><th>Status</th><th>Nama</th><th>Kode promo</th><th>Catatan</th><th>Type Trx</th><th>Nominal</th><th>Rekening</th><th>Kuota</th></tr></thead><tbody>`;
     rows.slice(0,LIMIT).forEach(x=>{ const r=x.row; shown++; h += `<tr class="${rowCls(x.status)}"><td class="mono">${esc(x.d||x.pair.date)}</td><td>${x.pair.program}</td><td>${pill(x.status)}</td><td class="nm">${esc(r.name)}</td><td class="mono">${esc(r.kodepromo)}</td><td class="notes">${issuesHtml(x.issues)}</td><td>${esc(r.type_trx)}</td><td class="mono">${esc(Number(r.amt_trx).toLocaleString("id-ID"))}</td><td class="mono">${esc(r.account_no)}</td><td class="mono">${esc(r.kuota)}</td></tr>`; });
@@ -1276,7 +1368,8 @@ function render(){
   document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{ state.tab=b.dataset.tab; render(); });
   $("excl").onchange = e=>{ state.excl=e.target.checked; render(); };
   if ($("skipSent")) $("skipSent").onchange = e=>{ state.skipSent=e.target.checked; };
-  if ($("rpCheck")) $("rpCheck").onclick = async ()=>{ $("rpCheck").disabled = true; try{ await tkFetch(); }catch(e){ alert(e.message); } render(); };
+  if ($("rpCheck")) $("rpCheck").onclick = async ()=>{ $("rpCheck").disabled = true; try{ await tkFetch(); await regSync(); }catch(e){ alert(e.message); } run(); };
+  if ($("regCheck")) $("regCheck").onclick = async ()=>{ $("regCheck").disabled = true; $("regCheck").textContent = "Memeriksa…"; try{ await tkFetch(); await regSync(); }catch(e){ alert(e.message); } run(); };
   $("dlE").onclick = downloadE; $("dlM").onclick = downloadM; $("dlRep").onclick = downloadReport; $("dlPkg").onclick = downloadPackage;
   if ($("copyNote")) $("copyNote").onclick = copyNote;
   if ($("aiBtn")) $("aiBtn").onclick = runAI;
@@ -1558,15 +1651,27 @@ const fixName = name => name.replace(/\.(xlsx|xls|csv)$/i,"") + " (FIX).xlsx";
 function replyBody(p){
   const r = p.rules, rows = p.mp.rows, kept = rows.filter(keepM);
   const total = kept.reduce((a,x)=>a+(Number(x.row.debit_amount)||0),0);
-  const bad = p.elig.filter(x=>x.status==="Tidak eligible"), rev = p.elig.filter(x=>x.status==="Perlu review");
+  const dupSent = p.elig.filter(x=>x.sentElsewhere);
+  const dupAcc = p.elig.filter(x=>x.dupAcc && !x.sentElsewhere);
+  const bad = p.elig.filter(x=>x.status==="Tidak eligible" && !x.sentElsewhere && !x.dupAcc), rev = p.elig.filter(x=>x.status==="Perlu review");
   const notFound = rows.filter(x=>x.eligStatus==="Tidak ditemukan");
   const long = rows.filter(isLong);
-  const judul = `PROGRAM CASHBACK EVENT UNTUK AKUISISI NEW NOA (${p.program}) Periode program ${periodeTxt(r)} - Periode Data ${p.label||p.date}`;
-  const clean = !bad.length && !rev.length && !notFound.length;
+  const judul = `PROGRAM CASHBACK EVENT UNTUK AKUISISI NEW NOA (${p.program}) Periode program ${periodeTxt(r)} - Periode Data ${p.periodeTxt||p.date}`;
+  const clean = !bad.length && !rev.length && !notFound.length && !dupSent.length && !dupAcc.length;
   let t = `Assalamualaikum Wr. Wb.\n\n${$("e_sapaan").value.trim()} `;
   t += clean ? `Terkait ${judul} yang dikirimkan sudah sesuai, mohon dapat ditindaklanjuti lebih lanjut oleh tim DBO.\n\n`
              : `Terkait ${judul} yang dikirimkan telah kami periksa, dengan catatan sebagai berikut:\n\n`;
   if (!clean){
+    if (dupSent.length){
+      t += `Data berikut sudah pernah kami sampaikan pada balasan sebelumnya, sehingga tidak kami sertakan kembali dalam file multi-posting terlampir:\n`;
+      dupSent.forEach(x=>{ t += `- ${x.row.name} (${x.row.account_no}): file ${x.sentElsewhere.file} ${x.sentElsewhere.prog}\n`; });
+      t += "\n";
+    }
+    if (dupAcc.length){
+      t += `Nasabah berikut sudah menerima cashback dari transaksi lain pada balasan sebelumnya, sehingga tidak kami sertakan dalam file multi-posting terlampir:\n`;
+      dupAcc.forEach(x=>{ t += `- ${x.row.name} (${x.row.account_no}): file ${x.dupAcc.file} ${x.dupAcc.prog}\n`; });
+      t += "\n";
+    }
     if (bad.length || notFound.length){
       t += `Data berikut tidak memenuhi ketentuan Memo 06/479-1/BBG${state.excl ? " dan telah kami keluarkan dari file multi-posting terlampir" : ", mohon untuk tidak diproses"}:\n`;
       bad.forEach(x=>{ t += `- ${x.row.name} (${x.row.account_no}): ${x.issues.filter(i=>i.level==="error").map(i=>i.msg).join("; ")}\n`; });
@@ -1583,34 +1688,41 @@ function replyBody(p){
   t += `Atas perhatian dan kerja samanya kami ucapkan terima kasih banyak.\n\nWassalamualaikum Wr. Wb.\n`;
   const nama = $("e_nama").value.trim(); if (nama) t += nama + "\n\n";
   t += $("e_ttd").value.trim() + "\n";
-  const meta = `#KILAU program=${p.program};tanggal=${p.date};baris_asli=${rows.length};baris_kirim=${kept.length};total_kirim=${total};bersih=${clean?1:0}`;
+  const sidik = kept.filter(x=>x.eh).map(x=>`${x.eh.t}:${x.eh.a}:${x.d||p.date}`).join(",");
+  const meta = `#KILAU sidik=${sidik};program=${p.program};tanggal=${p.date};periode=${p.pStart||p.date}..${p.pEnd||p.date};baris_asli=${rows.length};baris_kirim=${kept.length};total_kirim=${total};bersih=${clean?1:0}`;
   return meta + "\n" + t;
 }
 
 async function downloadPackage(){
   state.stepDone = 3; setStep(3);
-  const msg = $("dlMsg");
+  let msg = $("dlMsg");
   if (typeof JSZip === "undefined"){ msg.textContent = "Komponen ZIP gagal dimuat, muat ulang halaman."; return; }
-  const all = state.res.list.filter(p=>p.m);
-  if (!all.length){ msg.textContent = "Belum ada File Multiposting."; return; }
-  let pairs = all.filter(p=>p.m.rows.length>0);   // file 0 transaksi tidak dibalas
-  if (!pairs.length){ msg.textContent = "Semua file berisi 0 transaksi, tidak ada yang perlu dibalas."; return; }
-  let skipped = [];
   if (state.skipSent !== false){
     const c = tkCfg();
     if (!c.url || !c.token){
       if (!confirm("Tracker belum dihubungkan (menu Tracker → Koneksi tracker), jadi KILAU tidak bisa mengecek mana yang sudah dibalas.\n\nTetap unduh paket untuk SEMUA hari?")) return;
     } else {
       msg.textContent = "Mengecek tracker…";
-      try{ await tkFetch(); }
-      catch(e){ if (!confirm(`${e.message}\n\nTetap unduh paket untuk SEMUA hari tanpa cek tracker?`)) { msg.textContent = ""; return; } }
+      try{ await tkFetch(); await regSync(); run(); }
+      catch(e){ if (!confirm(`${e.message}\n\nTetap unduh paket untuk SEMUA hari tanpa cek tracker?`)) { msg.textContent = ""; return; } TK = { status:null, at:null }; }
+    }
+  }
+  const all = state.res.list.filter(p=>p.m);
+  if (!all.length){ $("dlMsg").textContent = "Belum ada File Multiposting."; return; }
+  let pairs = all.filter(p=>p.m.rows.length>0);   // file 0 transaksi tidak dibalas
+  if (!pairs.length){ msg.textContent = "Semua file berisi 0 transaksi, tidak ada yang perlu dibalas."; return; }
+  let skipped = [], allDup = [];
+  if (state.skipSent !== false){
+    {
       if (TK.status){
         skipped = pairs.filter(p=>tkDoneSt((TK.status[p.key]||{}).status));
         pairs = pairs.filter(p=>!skipped.includes(p));
-        if (!pairs.length){ const t = `Semua ${skipped.length} hari sudah tercatat Terkirim/Draft di tracker. Tidak ada yang perlu dibalas.`; render(); $("dlMsg").textContent = t; return; }
+        if (REG.loaded){ allDup = pairs.filter(p=>p.mp.rows.length && p.mp.rows.every(x=>x.sentElsewhere||x.dupAcc)); pairs = pairs.filter(p=>!allDup.includes(p)); }
+        if (!pairs.length){ const t = `Tidak ada yang perlu dibalas: ${skipped.length} hari sudah tercatat Terkirim/Draft${allDup.length?`, ${allDup.length} file berisi baris yang semuanya sudah pernah dikirim`:""}.`; render(); $("dlMsg").textContent = t; return; }
       }
     }
   }
+  msg = $("dlMsg");
   const zip = new JSZip();
   pairs.forEach(p=>{
     const fx = fixName(p.m.name);
@@ -1623,6 +1735,9 @@ async function downloadPackage(){
   msg.textContent += ` Berisi ${pairs.length} hari.`;
   if (skipped.length) msg.textContent += ` ${skipped.length} hari dilewati karena sudah tercatat di tracker (${skipped.map(p=>`${p.date} ${p.program}: ${TK.status[p.key].status}`).join(", ")}).`;
   if (nol) msg.textContent += ` ${nol} hari berisi 0 transaksi tidak dimasukkan.`;
+  if (allDup.length) msg.textContent += ` ${allDup.length} file dilewati karena semua barisnya sudah pernah dikirim (${allDup.map(p=>`${p.date} ${p.program}`).join(", ")}).`;
+  const dupRows = pairs.reduce((a,p)=>a+p.mp.rows.filter(x=>x.sentElsewhere||x.dupAcc).length,0);
+  if (dupRows) msg.textContent += ` ${dupRows} baris yang sudah pernah dikirim / nasabah dobel dikeluarkan dari file FIX.`;
   const keep = msg.textContent; render(); $("dlMsg").textContent = keep;
 }
 
@@ -1651,11 +1766,11 @@ function replyHtml(){
       h += `<tr><td class="msg">–</td><td class="mono">${esc(p.date)}</td><td>${p.program}</td><td><span class="pill p-ok" style="background:var(--bg);color:var(--muted)">0 transaksi</span></td><td colspan="2" class="msg">Tidak perlu dibalas.</td></tr>`;
       return;
     }
-    const kw = `Periode Data ${p.date}`, clean = replyBody(p).includes("bersih=1");
+    const kw = p.bulk ? `FILE MULTIPOSTING ${p.periodeTxt.replace(/^1 - \d+ /,"")}` : `Periode Data ${p.date}`, clean = replyBody(p).includes("bersih=1");
     const tDone = TK.status && tkDoneSt((TK.status[p.key]||{}).status);
     h += `<tr class="${sent[p.key]||tDone?"st-ok":clean?"":"st-rv"}">
       <td>${TK.status && TK.status[p.key] ? `${tkPill(TK.status[p.key].status)}<div class="msg">${esc(TK.status[p.key].oleh||"")}</div>` : `<button class="ghost" data-rp="sent" data-k="${esc(p.key)}" aria-pressed="${!!sent[p.key]}">${sent[p.key]?"✓ Sudah":"Tandai"}</button>`}</td>
-      <td class="mono">${esc(p.label||p.date)}</td><td>${p.program}</td>
+      <td class="mono">${esc(p.bulk ? p.periodeTxt : p.date)}${p.bulk?`<div class="msg">rekap · data ${esc(p.label)}</div>`:""}</td><td>${p.program}</td>
       <td>${clean?'<span class="pill p-ok">Sesuai</span>':'<span class="pill p-rv">Ada catatan</span>'}</td>
       <td class="mono">${esc(kw)} ${p.program}</td>
       <td style="white-space:nowrap"><button class="ghost" data-rp="kw" data-k="${esc(p.key)}">Salin kata kunci</button> <button data-rp="body" data-k="${esc(p.key)}">Salin isi email</button> <button class="ghost" data-rp="fix" data-k="${esc(p.key)}">Unduh file FIX</button></td></tr>`;
@@ -1671,7 +1786,7 @@ async function copyText(t, btn){
 }
 function replyAction(kind, key, btn){
   const p = state.res.list.find(x=>x.key===key); if (!p) return;
-  if (kind==="kw") copyText(`Periode Data ${p.date} ${p.program}`, btn);
+  if (kind==="kw") copyText(p.bulk ? `"FILE MULTIPOSTING" ${p.program} ${p.periodeTxt.replace(/^1 - \d+ /,"")}` : `Periode Data ${p.date} ${p.program}`, btn);
   else if (kind==="body") copyText(replyText(p), btn);
   else if (kind==="fix") save(fixName(p.m.name), fixBytes(p));
   else if (kind==="sent"){ const m=sentMap(); if (m[key]) delete m[key]; else m[key]=new Date().toISOString(); try{ localStorage.setItem(SKEY, JSON.stringify(m)); }catch(_){} render(); }
@@ -1835,7 +1950,7 @@ function tkSession(){
   if (!state.res) return m;
   // rentang file rekap: dari tanggal paling awal di semua file rekap bertanggal sama, sampai tanggal file
   const startByFile = {};
-  state.res.list.forEach(p=>{ if (p.bulk && p.dates.length){ startByFile[p.date] = startByFile[p.date] && startByFile[p.date] < p.dates[0] ? startByFile[p.date] : p.dates[0]; } });
+  state.res.list.forEach(p=>{ if (p.bulk && p.dates.length){ const s0 = p.pStart && p.pStart < p.dates[0] ? p.pStart : p.dates[0]; startByFile[p.date] = startByFile[p.date] && startByFile[p.date] < s0 ? startByFile[p.date] : s0; } });
   state.res.list.forEach(p=>{
     const ds = new Set(p.dates && p.dates.length ? p.dates : [p.date]);
     const st = startByFile[p.date];
@@ -1886,6 +2001,7 @@ async function tkFetch(){
   }catch(_){ throw new Error("Tidak bisa menghubungi tracker. Cek URL Web App (akses Anyone) dan koneksi internet."); }
   if (!j.ok) throw new Error(j.error === "token" ? "Token tracker salah." : "Tracker menolak permintaan.");
   TK = { status: j.status || {}, at: new Date() };
+  try{ await regFetch(); }catch(_){}
   return TK.status;
 }
 async function tkLoad(){
